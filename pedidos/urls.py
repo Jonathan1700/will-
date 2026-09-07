@@ -1,0 +1,28 @@
+from django.urls import path
+from . import views
+
+urlpatterns = [
+    # login
+    path("login/", views.login_view, name="login"),
+    path("logout/", views.logout_view, name="logout"),
+    path("post-login/", views.post_login, name="post_login"),
+
+    # mesero
+    path("", views.elegir_mesa, name="elegir_mesa"),
+    path("mesa/<int:mesa_id>/", views.menu_mesa, name="menu_mesa"),
+    path("orden/<int:orden_id>/agregar/<int:producto_id>/", views.agregar_item, name="agregar_item"),
+    path("orden/<int:orden_id>/confirmar/", views.confirmar_orden, name="confirmar_orden"),
+    path("api/disponibilidad/", views.disponibilidad_json, name="disponibilidad_json"),
+    path("api/listas/", views.ordenes_listas_json, name="ordenes_listas_json"),
+    path("orden/<int:orden_id>/entregar/", views.entregar_a_cliente, name="entregar_a_cliente"),
+
+    # cocina
+    path("cocina/", views.panel_cocina, name="panel_cocina"),
+    path("cocina/api/pendientes/", views.ordenes_pendientes_json, name="ordenes_pendientes_json"),
+    path("cocina/orden/<int:orden_id>/entregada/", views.marcar_entregada, name="marcar_entregada"),
+    path("cocina/producto/<int:producto_id>/toggle/", views.toggle_disponibilidad, name="toggle_disponibilidad"),
+
+    # admin / reportes
+    path("reportes/", views.reportes, name="reportes"),
+    path("reportes/exportar/", views.exportar_excel, name="exportar_excel"),
+]

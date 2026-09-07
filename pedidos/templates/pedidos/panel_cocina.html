@@ -1,0 +1,107 @@
+{% extends "pedidos/base.html" %}
+{% block titulo %}Cocina{% endblock %}
+{% block contenido %}
+<header class="top">
+    <span class="titulo">Cocina</span>
+    <a href="{% url 'logout' %}" class="mesa" style="text-decoration:none;">Salir</a>
+</header>
+<div class="app" id="comandas-contenedor">
+    {% for orden in ordenes %}
+    <div class="comanda" data-orden-id="{{ orden.id }}">
+        <div class="comanda-header">
+            <span class="mesa-num">Mesa {{ orden.mesa.numero }}</span>
+            {% with min=orden.minutos_en_espera %}
+            <span class="tiempo-tag {% if min < 5 %}reciente{% elif min < 12 %}medio{% else %}tarde{% endif %}">
+                hace {{ min }} min
+            </span>
+            {% endwith %}
+        </div>
+
+        <div class="ticket-meta">
+            <span>Orden #{{ orden.id }}</span>
+            <span>{{ orden.enviado_a_cocina|date:"d/m/Y H:i" }}</span>
+        </div>
+
+        <table class="ticket">
+            <thead>
+                <tr>
+                    <th class="t-cant">Cant</th>
+                    <th>Producto</th>
+                    <th class="t-num">P. unit</th>
+                    <th class="t-num">Subtotal</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in orden.items.all %}
+                <tr>
+                    <td class="t-cant">{{ item.cantidad }}</td>
+                    <td>
+                        {{ item.producto.nombre }}
+                        {% if item.notas %}<span class="t-nota">{{ item.notas }}</span>{% endif %}
+                    </td>
+                    <td class="t-num">${{ item.producto.precio }}</td>
+                    <td class="t-num">${{ item.subtotal }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <div class="ticket-total">
+            <span>Total</span>
+            <span class="ticket-total-monto">${{ orden.total }}</span>
+        </div>
+
+        <form method="post" action="{% url 'marcar_entregada' orden.id %}" style="margin-top:12px;">
+            {% csrf_token %}
+            <button class="btn">Marcar como listo</button>
+        </form>
+    </div>
+    {% empty %}
+    <p>No hay pedidos pendientes por ahora.</p>
+    {% endfor %}
+
+    <h3 class="seccion-titulo">Disponibilidad rapida</h3>
+    <p class="seccion-ayuda">Toca un producto para activarlo o marcarlo como agotado.</p>
+    <div class="disp-grid">
+        {% for producto in productos_todos %}
+        <form method="post" action="{% url 'toggle_disponibilidad' producto.id %}">
+            {% csrf_token %}
+            <button type="submit" class="disp-card {% if producto.disponible %}on{% else %}off{% endif %}">
+                <span class="disp-media">
+                    {% if producto.imagen %}
+                    <img src="{{ producto.imagen.url }}" alt="">
+                    {% else %}
+                    {% if producto.es_combo %}🍽️{% elif producto.categoria == 'bebidas' %}🥤{% elif producto.categoria == 'papas' %}🍟{% else %}🍗{% endif %}
+                    {% endif %}
+                </span>
+                <span class="disp-nombre">{{ producto.nombre }}</span>
+                <span class="disp-estado">{% if producto.disponible %}Disponible{% else %}Agotado{% endif %}</span>
+            </button>
+        </form>
+        {% endfor %}
+    </div>
+</div>
+
+<script>
+// Revisa cada 8s: si llegaron o salieron pedidos recarga, si no solo refresca
+// los minutos de espera. Asi no interrumpe mientras cocina toca disponibilidad.
+const firmaActual = [{% for orden in ordenes %}{{ orden.id }},{% endfor %}].join(',');
+
+setInterval(() => {
+    fetch("{% url 'ordenes_pendientes_json' %}")
+        .then(r => r.json())
+        .then(data => {
+            if (data.ordenes.map(o => o.id).join(',') !== firmaActual) {
+                window.location.reload();
+                return;
+            }
+            data.ordenes.forEach(o => {
+                const tag = document.querySelector(`[data-orden-id="${o.id}"] .tiempo-tag`);
+                if (!tag) return;
+                tag.textContent = `hace ${o.minutos} min`;
+                tag.className = 'tiempo-tag ' + (o.minutos < 5 ? 'reciente' : o.minutos < 12 ? 'medio' : 'tarde');
+            });
+        });
+}, 8000);
+</script>
+{% endblock %}

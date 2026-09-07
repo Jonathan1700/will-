@@ -1,0 +1,60 @@
+{% extends "pedidos/base.html" %}
+{% block titulo %}Elegir mesa{% endblock %}
+{% block contenido %}
+<header class="top">
+    <span class="titulo">Asadero Don Beto</span>
+    <a href="{% url 'logout' %}" class="mesa" style="text-decoration:none;">Salir</a>
+</header>
+<div class="app">
+
+    {% if ordenes_listas %}
+    <h2 class="seccion-titulo listos-titulo">Listos para llevar a la mesa</h2>
+    <div class="listos-grid">
+        {% for orden in ordenes_listas %}
+        <div class="listo-card">
+            <div class="listo-head">
+                <span class="listo-mesa">Mesa {{ orden.mesa.numero }}</span>
+                <span class="listo-tag">Listo</span>
+            </div>
+            <p class="listo-detalle">
+                {% for item in orden.items.all %}{{ item.cantidad }}x {{ item.producto.nombre }}{% if item.notas %} ({{ item.notas }}){% endif %}{% if not forloop.last %} · {% endif %}{% endfor %}
+            </p>
+            <div class="listo-foot">
+                <span class="listo-total">${{ orden.total }}</span>
+                <form method="post" action="{% url 'entregar_a_cliente' orden.id %}">
+                    {% csrf_token %}
+                    <button class="listo-btn">Ya la entregue</button>
+                </form>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <h2 class="seccion-titulo">Elige una mesa</h2>
+    <div class="mesas-grid">
+        {% for mesa in mesas %}
+        <a href="{% url 'menu_mesa' mesa.id %}" class="mesa-btn {% if mesa.tiene_orden_abierta %}ocupada{% endif %}">
+            {{ mesa.numero }}
+        </a>
+        {% empty %}
+        <p>No hay mesas creadas todavia. Agregalas desde /admin/.</p>
+        {% endfor %}
+    </div>
+</div>
+
+<script>
+// Avisa en la tablet cuando cocina marca un pedido como listo
+const listasActual = [{% for orden in ordenes_listas %}{{ orden.id }},{% endfor %}].join(',');
+
+setInterval(() => {
+    fetch("{% url 'ordenes_listas_json' %}")
+        .then(r => r.json())
+        .then(data => {
+            if (data.listas.map(o => o.id).join(',') !== listasActual) {
+                window.location.reload();
+            }
+        });
+}, 8000);
+</script>
+{% endblock %}

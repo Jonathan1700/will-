@@ -1,0 +1,58 @@
+{% extends "pedidos/base.html" %}
+{% block titulo %}Reportes{% endblock %}
+{% block contenido %}
+<header class="top">
+    <span class="titulo">Reportes</span>
+    <a href="{% url 'logout' %}" class="mesa" style="text-decoration:none;">Salir</a>
+</header>
+<div class="app">
+
+    <div class="categorias">
+        <a href="?rango=dia" class="cat {% if rango == 'dia' %}activo{% endif %}">Hoy</a>
+        <a href="?rango=semana" class="cat {% if rango == 'semana' %}activo{% endif %}">Esta semana</a>
+        <a href="?rango=mes" class="cat {% if rango == 'mes' %}activo{% endif %}">Este mes</a>
+    </div>
+
+    <p style="font-size:13px; color:var(--ink-soft); margin-bottom:16px;">{{ etiqueta }}</p>
+
+    <div class="grid" style="grid-template-columns: repeat(3, minmax(0,1fr)); margin-bottom:24px;">
+        <div class="card" style="padding:14px;">
+            <p style="font-size:11px; color:var(--ink-soft); margin:0 0 6px;">Ordenes</p>
+            <p class="precio" style="font-size:22px;">{{ total_ordenes }}</p>
+        </div>
+        <div class="card" style="padding:14px;">
+            <p style="font-size:11px; color:var(--ink-soft); margin:0 0 6px;">Ingresos</p>
+            <p class="precio" style="font-size:22px;">${{ ingreso_total|floatformat:2 }}</p>
+        </div>
+        <div class="card" style="padding:14px;">
+            <p style="font-size:11px; color:var(--ink-soft); margin:0 0 6px;">Ticket prom.</p>
+            <p class="precio" style="font-size:22px;">${{ ticket_promedio|floatformat:2 }}</p>
+        </div>
+    </div>
+
+    <a href="{% url 'exportar_excel' %}?rango={{ rango }}" class="btn" style="display:block; text-align:center; text-decoration:none; margin-bottom:24px;">
+        Exportar a Excel
+    </a>
+
+    <h3 style="font-family:'Anton',sans-serif; color:var(--navy); text-transform:uppercase;">Mas vendidos</h3>
+    {% for p in productos_vendidos %}
+    <div class="toggle-row">
+        <span>{{ p.producto__nombre }}</span>
+        <span style="font-weight:700; color:var(--navy);">{{ p.cantidad_total }}</span>
+    </div>
+    {% empty %}
+    <p style="font-size:13px; color:var(--ink-soft);">Sin ventas en este periodo.</p>
+    {% endfor %}
+
+    <h3 style="font-family:'Anton',sans-serif; color:var(--navy); text-transform:uppercase; margin-top:30px;">Registro de acciones</h3>
+    {% for r in registros %}
+    <p style="font-size:12.5px; color:var(--ink-soft); border-bottom:1px dashed #D9D0BC; padding:6px 0;">
+        <strong style="color:var(--navy);">{{ r.usuario }}</strong> — {{ r.accion }}
+        <span style="float:right;">{{ r.fecha|date:"d/m H:i" }}</span>
+    </p>
+    {% empty %}
+    <p style="font-size:13px; color:var(--ink-soft);">Sin acciones registradas todavia.</p>
+    {% endfor %}
+
+</div>
+{% endblock %}

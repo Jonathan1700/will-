@@ -1,0 +1,160 @@
+{% extends "pedidos/base.html" %}
+{% block titulo %}Menu - Mesa {{ mesa.numero }}{% endblock %}
+{% block contenido %}
+<header class="top">
+    <a href="{% url 'elegir_mesa' %}" class="titulo">Asadero Don Beto</a>
+    <span class="mesa">Mesa {{ mesa.numero }}</span>
+    <a href="{% url 'logout' %}" style="color:var(--cream); font-size:12px; margin-left:10px;">Salir</a>
+</header>
+<div class="app">
+
+    <div class="categorias">
+        {% for valor, nombre in categorias %}
+        <a href="?categoria={{ valor }}" class="cat {% if valor == categoria_activa %}activo{% endif %}">{{ nombre }}</a>
+        {% endfor %}
+    </div>
+
+    <div class="grid">
+        {% for producto in productos %}
+        {% with disponible=producto.esta_disponible %}
+        <div class="card {% if not disponible %}no-disponible{% endif %}" data-producto-id="{{ producto.id }}">
+            <div class="card-media">
+                {% if not disponible %}
+                    <span class="badge badge-agotado">Agotado</span>
+                {% elif producto.stock_bajo %}
+                    <span class="badge badge-pocas">Pocas unidades</span>
+                {% elif producto.es_combo %}
+                    <span class="badge badge-combo">Combo</span>
+                {% endif %}
+                {% if producto.imagen %}
+                <img class="media-foto" src="{{ producto.imagen.url }}" alt="{{ producto.nombre }}">
+                {% else %}
+                <span class="media-emoji" aria-hidden="true">
+                    {% if producto.es_combo %}🍽️{% elif producto.categoria == 'bebidas' %}🥤{% elif producto.categoria == 'papas' %}🍟{% else %}🍗{% endif %}
+                </span>
+                {% endif %}
+            </div>
+            <div class="card-body">
+                <p class="nombre">{{ producto.nombre }}</p>
+                {% if producto.combo_incluye %}
+                <p class="combo-incluye">{{ producto.combo_incluye }}</p>
+                {% endif %}
+                {% if producto.categoria == 'bebidas' and producto.controla_stock %}
+                <p class="stock-info {% if producto.stock_bajo %}stock-bajo{% endif %}">Stock: {{ producto.stock }} unidades</p>
+                {% endif %}
+                <div class="card-footer">
+                    <span class="precio">${{ producto.precio }}</span>
+                    <form method="post" action="{% url 'agregar_item' orden.id producto.id %}" class="form-agregar">
+                        {% csrf_token %}
+                        <input type="hidden" name="categoria" value="{{ categoria_activa }}">
+                        {% if producto.requiere_pieza %}
+                        <input type="hidden" name="pieza">
+                        <button type="button" class="btn-add abrir-pieza" data-nombre="{{ producto.nombre }}" {% if not disponible %}disabled{% endif %} aria-label="Agregar">
+                            {% if disponible %}+{% else %}✕{% endif %}
+                        </button>
+                        {% else %}
+                        <button class="btn-add" {% if not disponible %}disabled{% endif %} aria-label="Agregar">
+                            {% if disponible %}+{% else %}✕{% endif %}
+                        </button>
+                        {% endif %}
+                    </form>
+                </div>
+            </div>
+        </div>
+        {% endwith %}
+        {% empty %}
+        <p>No hay productos en esta categoria todavia.</p>
+        {% endfor %}
+    </div>
+
+    <div class="carrito-bar">
+        <div>
+            <div class="info">Mesa {{ mesa.numero }} · {{ orden.items.count }} items</div>
+            <div class="total">${{ orden.total }}</div>
+        </div>
+        <form method="post" action="{% url 'confirmar_orden' orden.id %}">
+            {% csrf_token %}
+            <button {% if orden.items.count == 0 %}disabled{% endif %}>Enviar a cocina</button>
+        </form>
+    </div>
+
+    <a href="{% url 'elegir_mesa' %}" class="aviso-listos" id="aviso-listos" hidden></a>
+
+    <div class="modal-overlay" id="modal-pieza" hidden>
+        <div class="modal-box">
+            <p class="modal-titulo">Elige la pieza<span id="modal-producto-nombre"></span></p>
+            <div class="piezas-grid">
+                {% for pieza in piezas_pollo %}
+                <button type="button" class="pieza-btn" data-pieza="{{ pieza }}">{{ pieza }}</button>
+                {% endfor %}
+            </div>
+            <button type="button" class="modal-cancelar" id="modal-cancelar">Cancelar</button>
+        </div>
+    </div>
+
+</div>
+
+<script>
+// Modal de seleccion de pieza para 1/8 y 1/4 de pollo
+(() => {
+    const modal = document.getElementById('modal-pieza');
+    const nombreSpan = document.getElementById('modal-producto-nombre');
+    let formActivo = null;
+
+    document.querySelectorAll('.abrir-pieza').forEach(btn => {
+        btn.addEventListener('click', () => {
+            formActivo = btn.closest('form');
+            nombreSpan.textContent = ' — ' + btn.dataset.nombre;
+            modal.hidden = false;
+        });
+    });
+
+    modal.querySelectorAll('.pieza-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            if (formActivo) {
+                formActivo.querySelector('input[name="pieza"]').value = btn.dataset.pieza;
+                formActivo.submit();
+            }
+        });
+    });
+
+    document.getElementById('modal-cancelar').addEventListener('click', () => {
+        modal.hidden = true;
+        formActivo = null;
+    });
+})();
+
+// Revisa disponibilidad cada 8 segundos por si cocina marco algo como agotado
+setInterval(() => {
+    fetch("{% url 'disponibilidad_json' %}")
+        .then(r => r.json())
+        .then(data => {
+            document.querySelectorAll('[data-producto-id]').forEach(card => {
+                const id = card.dataset.productoId;
+                const disponible = data.disponibilidad[id];
+                if (disponible === false) {
+                    card.classList.add('no-disponible');
+                    const btn = card.querySelector('button.btn-add');
+                    if (btn) { btn.disabled = true; btn.textContent = '✕'; }
+                }
+            });
+        });
+}, 8000);
+
+// Aviso flotante cuando cocina deja un pedido listo para recoger
+const avisoListos = document.getElementById('aviso-listos');
+setInterval(() => {
+    fetch("{% url 'ordenes_listas_json' %}")
+        .then(r => r.json())
+        .then(data => {
+            const n = data.listas.length;
+            avisoListos.hidden = n === 0;
+            if (n === 0) return;
+            const mesas = data.listas.map(o => o.mesa).join(', ');
+            avisoListos.textContent = n === 1
+                ? `Pedido listo · Mesa ${mesas}`
+                : `${n} pedidos listos · Mesas ${mesas}`;
+        });
+}, 8000);
+</script>
+{% endblock %}
