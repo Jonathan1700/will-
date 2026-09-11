@@ -1,0 +1,1 @@
+{% if d is None %}<p class="kpi-delta neutro">sin periodo anterior</p>{% elif d > 0 %}<p class="kpi-delta sube">▲ {{ d }}% vs periodo anterior</p>{% elif d < 0 %}<p class="kpi-delta baja">▼ {{ d|cut:"-" }}% vs periodo anterior</p>{% else %}<p class="kpi-delta neutro">= igual que el periodo anterior</p>{% endif %}

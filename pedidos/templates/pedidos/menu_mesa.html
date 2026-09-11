@@ -1,145 +1,374 @@
 {% extends "pedidos/base.html" %}
+{% load l10n %}
 {% block titulo %}Menu - Mesa {{ mesa.numero }}{% endblock %}
 {% block contenido %}
 <header class="top">
-    <a href="{% url 'elegir_mesa' %}" class="titulo">Asadero Don Beto</a>
+    <a href="{% url 'elegir_mesa' %}" class="titulo">Brasas</a>
     <span class="mesa">Mesa {{ mesa.numero }}</span>
-    <a href="{% url 'logout' %}" style="color:var(--cream); font-size:12px; margin-left:10px;">Salir</a>
+    <span class="top-acciones">
+        <button type="button" class="top-fullscreen" id="btn-fullscreen" aria-label="Pantalla completa">⛶</button>
+        <a href="{% url 'logout' %}" class="top-salir">Salir</a>
+    </span>
 </header>
-<div class="app">
 
-    <div class="categorias">
+<div class="kiosk">
+
+    {# ---- rail de categorias (izquierda en tablet horizontal, fila arriba en vertical) ---- #}
+    <nav class="rail" aria-label="Categorias">
         {% for valor, nombre in categorias %}
-        <a href="?categoria={{ valor }}" class="cat {% if valor == categoria_activa %}activo{% endif %}">{{ nombre }}</a>
+        <a href="?categoria={{ valor }}" class="rail-item {% if valor == categoria_activa %}activo{% endif %}">
+            <span class="rail-icono" aria-hidden="true">{% if valor == 'combos' %}🍽️{% elif valor == 'pollo' %}🍗{% elif valor == 'acompanamientos' %}🍚{% elif valor == 'bebidas' %}🧃{% else %}🥤{% endif %}</span>
+            <span class="rail-texto">{% if valor == "acompanamientos" %}Acompaña&shy;mientos{% else %}{{ nombre }}{% endif %}</span>
+        </a>
         {% endfor %}
-    </div>
+    </nav>
 
-    <div class="grid">
-        {% for producto in productos %}
-        {% with disponible=producto.esta_disponible %}
-        <div class="card {% if not disponible %}no-disponible{% endif %}" data-producto-id="{{ producto.id }}">
-            <div class="card-media">
-                {% if not disponible %}
-                    <span class="badge badge-agotado">Agotado</span>
-                {% elif producto.stock_bajo %}
-                    <span class="badge badge-pocas">Pocas unidades</span>
-                {% elif producto.es_combo %}
-                    <span class="badge badge-combo">Combo</span>
-                {% endif %}
-                {% if producto.imagen %}
-                <img class="media-foto" src="{{ producto.imagen.url }}" alt="{{ producto.nombre }}">
-                {% else %}
-                <span class="media-emoji" aria-hidden="true">
-                    {% if producto.es_combo %}🍽️{% elif producto.categoria == 'bebidas' %}🥤{% elif producto.categoria == 'papas' %}🍟{% else %}🍗{% endif %}
-                </span>
-                {% endif %}
-            </div>
-            <div class="card-body">
-                <p class="nombre">{{ producto.nombre }}</p>
-                {% if producto.combo_incluye %}
-                <p class="combo-incluye">{{ producto.combo_incluye }}</p>
-                {% endif %}
-                {% if producto.categoria == 'bebidas' and producto.controla_stock %}
-                <p class="stock-info {% if producto.stock_bajo %}stock-bajo{% endif %}">Stock: {{ producto.stock }} unidades</p>
-                {% endif %}
-                <div class="card-footer">
-                    <span class="precio">${{ producto.precio }}</span>
-                    <form method="post" action="{% url 'agregar_item' orden.id producto.id %}" class="form-agregar">
-                        {% csrf_token %}
-                        <input type="hidden" name="categoria" value="{{ categoria_activa }}">
-                        {% if producto.requiere_pieza %}
-                        <input type="hidden" name="pieza">
-                        <button type="button" class="btn-add abrir-pieza" data-nombre="{{ producto.nombre }}" {% if not disponible %}disabled{% endif %} aria-label="Agregar">
-                            {% if disponible %}+{% else %}✕{% endif %}
-                        </button>
-                        {% else %}
-                        <button class="btn-add" {% if not disponible %}disabled{% endif %} aria-label="Agregar">
-                            {% if disponible %}+{% else %}✕{% endif %}
-                        </button>
+    {# ---- productos ---- #}
+    <main class="menu">
+        <h2 class="menu-titulo">{% for valor, nombre in categorias %}{% if valor == categoria_activa %}{{ nombre }}{% endif %}{% endfor %}</h2>
+
+        <div class="grid">
+            {% for producto in productos %}
+            {% with disponible=producto.esta_disponible %}
+            <article class="card {% if not disponible %}no-disponible{% endif %}" data-producto-id="{{ producto.id }}">
+                <div class="card-media">
+                    {% if not disponible %}
+                        <span class="badge badge-agotado">Agotado</span>
+                    {% elif producto.stock_bajo %}
+                        <span class="badge badge-pocas">Pocas unidades</span>
+                    {% elif producto.es_combo %}
+                        <span class="badge badge-combo">Combo</span>
+                    {% endif %}
+                    <span class="badge badge-timer" data-timer {% if not producto.segundos_restantes %}hidden{% endif %}>⏱ {{ producto.minutos_restantes }} min</span>
+                    {% if producto.imagen %}
+                    <img class="media-foto" src="{{ producto.imagen.url }}" alt="{{ producto.nombre }}">
+                    {% else %}
+                    <span class="media-emoji" aria-hidden="true">
+                        {% if producto.es_combo %}🍽️{% elif producto.categoria == 'gaseosas' %}🥤{% elif producto.categoria == 'bebidas' %}🧃{% elif producto.categoria == 'acompanamientos' %}🍚{% else %}🍗{% endif %}
+                    </span>
+                    {% endif %}
+                </div>
+                <div class="card-body">
+                    <p class="nombre">{{ producto.nombre }}</p>
+                    {% if producto.combo_incluye %}
+                    <p class="combo-incluye">{{ producto.combo_incluye }}</p>
+                    {% endif %}
+                    <div class="chips">
+                        {% if producto.permite_cambio and acompanamientos_cambio %}
+                        <span class="chip chip-cambio">🔄 Cambio de acompañamiento</span>
                         {% endif %}
-                    </form>
+                        {% if producto.requiere_pieza %}
+                        <span class="chip">Elige pieza</span>
+                        {% endif %}
+                        {% if producto.controla_stock %}
+                        <span class="chip {% if producto.stock_bajo %}chip-alerta{% endif %}">Stock: {{ producto.stock }}</span>
+                        {% endif %}
+                    </div>
+                    <div class="card-footer">
+                        <span class="precio">${{ producto.precio }}</span>
+                        <form method="post" action="{% url 'agregar_item' orden.id producto.id %}" class="form-agregar">
+                            {% csrf_token %}
+                            <input type="hidden" name="categoria" value="{{ categoria_activa }}">
+                            {% if producto.requiere_pieza or producto.permite_cambio %}
+                            <input type="hidden" name="pieza">
+                            <input type="hidden" name="acompanamiento">
+                            <button type="button" class="btn-add abrir-opciones"
+                                    data-nombre="{{ producto.nombre }}"
+                                    data-precio="{{ producto.precio|unlocalize }}"
+                                    data-requiere-pieza="{% if producto.requiere_pieza %}1{% endif %}"
+                                    data-incluido="{{ producto.acompanamiento_incluido }}"
+                                    {% if not disponible %}disabled{% endif %} aria-label="Agregar">
+                                {% if disponible %}+{% else %}✕{% endif %}
+                            </button>
+                            {% else %}
+                            <button class="btn-add" {% if not disponible %}disabled{% endif %} aria-label="Agregar">
+                                {% if disponible %}+{% else %}✕{% endif %}
+                            </button>
+                            {% endif %}
+                        </form>
+                    </div>
+                </div>
+            </article>
+            {% endwith %}
+            {% empty %}
+            <p class="menu-vacio">No hay productos en esta categoria todavia.</p>
+            {% endfor %}
+        </div>
+    </main>
+
+    {# ---- panel "Tu pedido": columna fija a la derecha; en pantallas angostas es una hoja inferior ---- #}
+    <aside class="pedido" id="pedido" aria-label="Tu pedido">
+        <div class="pedido-head">
+            <div>
+                <p class="pedido-titulo">Tu pedido</p>
+                <p class="pedido-sub">Mesa {{ mesa.numero }} · {{ orden.items.count }} item{{ orden.items.count|pluralize }}</p>
+            </div>
+            <button type="button" class="pedido-cerrar" id="pedido-cerrar" aria-label="Cerrar">✕</button>
+        </div>
+
+        <div class="pedido-lineas">
+            {% for item in orden.items.all %}
+            <div class="linea">
+                <label class="linea-check" aria-label="Seleccionar">
+                    <input type="checkbox" name="item_ids" value="{{ item.id }}" form="form-eliminar">
+                    <span></span>
+                </label>
+                <div class="linea-info">
+                    <span class="linea-nombre">{{ item.producto.nombre }}</span>
+                    {% if item.notas %}<span class="linea-mod">Pieza: {{ item.notas }}</span>{% endif %}
+                    {% if item.acompanamiento %}
+                    <span class="linea-mod cambio">Sin {{ item.producto.acompanamiento_incluido|lower }} · con {{ item.acompanamiento.nombre }}</span>
+                    {% endif %}
+                    <span class="linea-precio">${{ item.subtotal }}</span>
+                </div>
+                <div class="stepper">
+                    <button type="submit" form="form-cant-{{ item.id }}" name="delta" value="-1"
+                            class="{% if item.cantidad == 1 %}borrar{% endif %}"
+                            aria-label="{% if item.cantidad == 1 %}Quitar{% else %}Uno menos{% endif %}">
+                        {% if item.cantidad == 1 %}🗑{% else %}−{% endif %}
+                    </button>
+                    <span>{{ item.cantidad }}</span>
+                    <button type="submit" form="form-cant-{{ item.id }}" name="delta" value="1" aria-label="Uno mas">+</button>
                 </div>
             </div>
+            <form method="post" action="{% url 'cambiar_cantidad' orden.id item.id %}" id="form-cant-{{ item.id }}">
+                {% csrf_token %}
+                <input type="hidden" name="categoria" value="{{ categoria_activa }}">
+            </form>
+            {% empty %}
+            <div class="pedido-vacio">
+                <span aria-hidden="true">🧺</span>
+                <p>Aun no hay nada.<br>Toca un producto para agregarlo.</p>
+            </div>
+            {% endfor %}
         </div>
-        {% endwith %}
-        {% empty %}
-        <p>No hay productos en esta categoria todavia.</p>
-        {% endfor %}
-    </div>
 
-    <div class="carrito-bar">
-        <div>
-            <div class="info">Mesa {{ mesa.numero }} · {{ orden.items.count }} items</div>
-            <div class="total">${{ orden.total }}</div>
+        <div class="pedido-foot">
+            {% if orden.items.count %}
+            <form method="post" action="{% url 'eliminar_items' orden.id %}" id="form-eliminar">
+                {% csrf_token %}
+                <input type="hidden" name="categoria" value="{{ categoria_activa }}">
+                <button type="submit" class="btn-eliminar" id="btn-eliminar" hidden>Eliminar seleccionados</button>
+            </form>
+            {% endif %}
+            <div class="pedido-total">
+                <span>Total</span>
+                <strong>${{ orden.total }}</strong>
+            </div>
+            <form method="post" action="{% url 'confirmar_orden' orden.id %}">
+                {% csrf_token %}
+                <button class="btn-enviar" {% if orden.items.count == 0 %}disabled{% endif %}>Enviar a cocina</button>
+            </form>
         </div>
-        <form method="post" action="{% url 'confirmar_orden' orden.id %}">
-            {% csrf_token %}
-            <button {% if orden.items.count == 0 %}disabled{% endif %}>Enviar a cocina</button>
-        </form>
-    </div>
+    </aside>
+
+    {# barra flotante (solo pantallas angostas) que abre la hoja del pedido #}
+    <button type="button" class="pedido-bar" id="pedido-abrir">
+        <span class="pedido-bar-n">{{ orden.items.count }}</span>
+        <span class="pedido-bar-txt">Ver mi pedido</span>
+        <strong>${{ orden.total }}</strong>
+    </button>
+    <div class="pedido-backdrop" id="pedido-backdrop" hidden></div>
 
     <a href="{% url 'elegir_mesa' %}" class="aviso-listos" id="aviso-listos" hidden></a>
 
-    <div class="modal-overlay" id="modal-pieza" hidden>
-        <div class="modal-box">
-            <p class="modal-titulo">Elige la pieza<span id="modal-producto-nombre"></span></p>
-            <div class="piezas-grid">
-                {% for pieza in piezas_pollo %}
-                <button type="button" class="pieza-btn" data-pieza="{{ pieza }}">{{ pieza }}</button>
-                {% endfor %}
+    {# ---- hoja de opciones: pieza y/o cambio de acompañamiento ---- #}
+    <div class="modal-overlay" id="modal-opciones" hidden>
+        <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="modal-producto-nombre">
+            <div class="sheet-head">
+                <div>
+                    <p class="sheet-titulo" id="modal-producto-nombre"></p>
+                    <p class="sheet-sub" id="modal-producto-base"></p>
+                </div>
+                <button type="button" class="sheet-cerrar" id="modal-cancelar" aria-label="Cancelar">✕</button>
             </div>
-            <button type="button" class="modal-cancelar" id="modal-cancelar">Cancelar</button>
+
+            <div class="sheet-body">
+                <section id="seccion-pieza" hidden>
+                    <h3 class="sheet-seccion">Elige la pieza <span class="req">Obligatorio</span></h3>
+                    <div class="opciones opciones-2">
+                        {% for pieza in piezas_pollo %}
+                        <button type="button" class="opcion pieza-btn" data-pieza="{{ pieza }}">
+                            <span class="opcion-nombre">{{ pieza }}</span>
+                            <span class="opcion-check" aria-hidden="true"></span>
+                        </button>
+                        {% endfor %}
+                    </div>
+                </section>
+
+                <section id="seccion-cambio" hidden>
+                    <h3 class="sheet-seccion">Acompañamiento</h3>
+                    <div class="opciones">
+                        <button type="button" class="opcion cambio-btn seleccionado" data-id="" data-extra="0">
+                            <span class="opcion-nombre">Con <span id="modal-incluido"></span></span>
+                            <span class="opcion-precio incluido">Incluido</span>
+                            <span class="opcion-check" aria-hidden="true"></span>
+                        </button>
+                        {% for a in acompanamientos_cambio %}
+                        <button type="button" class="opcion cambio-btn" data-id="{{ a.id }}" data-extra="{{ a.precio_cambio|unlocalize }}">
+                            <span class="opcion-nombre">Cambiar por {{ a.nombre }}</span>
+                            <span class="opcion-precio">+${{ a.precio_cambio }}</span>
+                            <span class="opcion-check" aria-hidden="true"></span>
+                        </button>
+                        {% endfor %}
+                    </div>
+                    <p class="sheet-ayuda">¿Quiere lo incluido <strong>y ademas</strong> una porcion extra? Agregala desde la pestaña Acompañamientos (precio normal).</p>
+                </section>
+            </div>
+
+            <div class="sheet-foot">
+                <button type="button" class="btn-agregar" id="modal-agregar" disabled>
+                    <span>Agregar al pedido</span>
+                    <strong id="modal-total"></strong>
+                </button>
+            </div>
         </div>
     </div>
 
 </div>
 
 <script>
-// Modal de seleccion de pieza para 1/8 y 1/4 de pollo
-(() => {
-    const modal = document.getElementById('modal-pieza');
-    const nombreSpan = document.getElementById('modal-producto-nombre');
-    let formActivo = null;
+const fmt = n => '$' + n.toFixed(2).replace('.', ',');
 
-    document.querySelectorAll('.abrir-pieza').forEach(btn => {
+// Tocar cualquier parte de la tarjeta equivale a tocar su boton "+"
+document.querySelectorAll('.card').forEach(card => {
+    card.addEventListener('click', e => {
+        if (e.target.closest('button, form')) return;
+        const btn = card.querySelector('.btn-add');
+        if (btn && !btn.disabled) btn.click();
+    });
+});
+
+// Hoja de opciones: pieza (1/8) y/o cambio de acompañamiento ("Mejora tu combo")
+(() => {
+    const modal = document.getElementById('modal-opciones');
+    const nombreEl = document.getElementById('modal-producto-nombre');
+    const baseEl = document.getElementById('modal-producto-base');
+    const totalEl = document.getElementById('modal-total');
+    const seccionPieza = document.getElementById('seccion-pieza');
+    const seccionCambio = document.getElementById('seccion-cambio');
+    const incluidoSpan = document.getElementById('modal-incluido');
+    const btnAgregar = document.getElementById('modal-agregar');
+    let formActivo = null, requierePieza = false, precioBase = 0, pieza = '', cambioId = '', extra = 0;
+
+    const marcar = (lista, activo) => lista.forEach(b => b.classList.toggle('seleccionado', b === activo));
+    const refrescar = () => {
+        btnAgregar.disabled = requierePieza && !pieza;
+        totalEl.textContent = fmt(precioBase + extra);
+    };
+    const cerrar = () => { modal.hidden = true; formActivo = null; };
+
+    document.querySelectorAll('.abrir-opciones').forEach(btn => {
         btn.addEventListener('click', () => {
             formActivo = btn.closest('form');
-            nombreSpan.textContent = ' — ' + btn.dataset.nombre;
+            requierePieza = btn.dataset.requierePieza === '1';
+            precioBase = parseFloat(btn.dataset.precio) || 0;
+            pieza = ''; cambioId = ''; extra = 0;
+
+            nombreEl.textContent = btn.dataset.nombre;
+            baseEl.textContent = 'Precio base ' + fmt(precioBase);
+            seccionPieza.hidden = !requierePieza;
+            seccionCambio.hidden = !btn.dataset.incluido;
+            incluidoSpan.textContent = (btn.dataset.incluido || '').toLowerCase();
+
+            marcar(modal.querySelectorAll('.pieza-btn'), null);
+            marcar(modal.querySelectorAll('.cambio-btn'), modal.querySelector('.cambio-btn[data-id=""]'));
+            refrescar();
             modal.hidden = false;
         });
     });
 
-    modal.querySelectorAll('.pieza-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-            if (formActivo) {
-                formActivo.querySelector('input[name="pieza"]').value = btn.dataset.pieza;
-                formActivo.submit();
-            }
-        });
+    modal.querySelectorAll('.pieza-btn').forEach(btn => btn.addEventListener('click', () => {
+        pieza = btn.dataset.pieza;
+        marcar(modal.querySelectorAll('.pieza-btn'), btn);
+        refrescar();
+    }));
+
+    modal.querySelectorAll('.cambio-btn').forEach(btn => btn.addEventListener('click', () => {
+        cambioId = btn.dataset.id;
+        extra = parseFloat(btn.dataset.extra) || 0;
+        marcar(modal.querySelectorAll('.cambio-btn'), btn);
+        refrescar();
+    }));
+
+    btnAgregar.addEventListener('click', () => {
+        if (!formActivo) return;
+        formActivo.querySelector('input[name="pieza"]').value = pieza;
+        formActivo.querySelector('input[name="acompanamiento"]').value = cambioId;
+        formActivo.requestSubmit();
     });
 
-    document.getElementById('modal-cancelar').addEventListener('click', () => {
-        modal.hidden = true;
-        formActivo = null;
-    });
+    document.getElementById('modal-cancelar').addEventListener('click', cerrar);
+    modal.addEventListener('click', e => { if (e.target === modal) cerrar(); });
 })();
 
-// Revisa disponibilidad cada 8 segundos por si cocina marco algo como agotado
+// Panel "Tu pedido": en pantallas angostas es una hoja que se abre desde la barra flotante
+(() => {
+    const pedido = document.getElementById('pedido');
+    const backdrop = document.getElementById('pedido-backdrop');
+    const abrir = si => { pedido.classList.toggle('abierto', si); backdrop.hidden = !si; };
+
+    document.getElementById('pedido-abrir').addEventListener('click', () => abrir(true));
+    document.getElementById('pedido-cerrar').addEventListener('click', () => abrir(false));
+    backdrop.addEventListener('click', () => abrir(false));
+    // despues de editar/eliminar el servidor vuelve con ?carrito=1 para dejar la hoja abierta
+    if (new URLSearchParams(location.search).get('carrito') === '1') abrir(true);
+
+    // "Eliminar seleccionados" aparece solo cuando hay lineas marcadas
+    const btnEliminar = document.getElementById('btn-eliminar');
+    const checks = pedido.querySelectorAll('input[name="item_ids"]');
+    const refrescar = () => {
+        if (!btnEliminar) return;
+        const n = [...checks].filter(c => c.checked).length;
+        btnEliminar.hidden = n === 0;
+        btnEliminar.textContent = `Eliminar ${n} seleccionado${n === 1 ? '' : 's'}`;
+    };
+    checks.forEach(c => c.addEventListener('change', refrescar));
+})();
+
+// Disponibilidad y temporizadores de cocina: se consulta cada 2.5 s para que lo que
+// toca cocina se vea casi al instante. Prende y apaga productos en ambos sentidos.
+const relojes = {};   // id -> timestamp en que vence el temporizador
+
+const pintarTimer = (card, segundos) => {
+    const tag = card.querySelector('[data-timer]');
+    if (!tag) return;
+    tag.hidden = segundos <= 0;
+    if (segundos > 0) {
+        const min = Math.ceil(segundos / 60);
+        tag.textContent = segundos < 60 ? '⏱ menos de 1 min' : `⏱ faltan ${min} min`;
+    }
+};
+
+const aplicarDisponibilidad = data => {
+    document.querySelectorAll('[data-producto-id]').forEach(card => {
+        const id = card.dataset.productoId;
+        const disponible = data.disponibilidad[id];
+        const btn = card.querySelector('button.btn-add');
+        if (disponible === false) {
+            card.classList.add('no-disponible');
+            if (btn) { btn.disabled = true; btn.textContent = '✕'; }
+        } else if (disponible === true) {
+            card.classList.remove('no-disponible');
+            if (btn) { btn.disabled = false; btn.textContent = '+'; }
+        }
+        const segundos = data.temporizadores[id] || 0;
+        relojes[id] = segundos ? Date.now() + segundos * 1000 : 0;
+        pintarTimer(card, segundos);
+    });
+};
+
+const sondear = () => fetch("{% url 'disponibilidad_json' %}")
+    .then(r => r.json()).then(aplicarDisponibilidad).catch(() => {});
+setInterval(sondear, 2500);
+
+// entre sondeos, la cuenta regresiva sigue localmente
 setInterval(() => {
-    fetch("{% url 'disponibilidad_json' %}")
-        .then(r => r.json())
-        .then(data => {
-            document.querySelectorAll('[data-producto-id]').forEach(card => {
-                const id = card.dataset.productoId;
-                const disponible = data.disponibilidad[id];
-                if (disponible === false) {
-                    card.classList.add('no-disponible');
-                    const btn = card.querySelector('button.btn-add');
-                    if (btn) { btn.disabled = true; btn.textContent = '✕'; }
-                }
-            });
-        });
-}, 8000);
+    document.querySelectorAll('[data-producto-id]').forEach(card => {
+        const fin = relojes[card.dataset.productoId];
+        if (fin) pintarTimer(card, Math.round((fin - Date.now()) / 1000));
+    });
+}, 1000);
 
 // Aviso flotante cuando cocina deja un pedido listo para recoger
 const avisoListos = document.getElementById('aviso-listos');

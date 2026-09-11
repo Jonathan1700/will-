@@ -1,58 +1,377 @@
 {% extends "pedidos/base.html" %}
-{% block titulo %}Reportes{% endblock %}
+{% block titulo %}Panel de administracion{% endblock %}
 {% block contenido %}
 <header class="top">
-    <span class="titulo">Reportes</span>
-    <a href="{% url 'logout' %}" class="mesa" style="text-decoration:none;">Salir</a>
+    <span class="titulo">Brasas</span>
+    <span class="mesa">Administracion</span>
+    <span class="top-acciones">
+        <a href="{% url 'logout' %}" class="top-salir">Salir</a>
+    </span>
 </header>
-<div class="app">
 
-    <div class="categorias">
-        <a href="?rango=dia" class="cat {% if rango == 'dia' %}activo{% endif %}">Hoy</a>
-        <a href="?rango=semana" class="cat {% if rango == 'semana' %}activo{% endif %}">Esta semana</a>
-        <a href="?rango=mes" class="cat {% if rango == 'mes' %}activo{% endif %}">Este mes</a>
+<div class="dash">
+
+    {# ---- filtros: una fila, rango primero ---- #}
+    <div class="dash-filtros">
+        <div class="rangos" role="group" aria-label="Tipo de periodo">
+            <a href="?rango=dia&fecha={{ ancla|date:'Y-m-d' }}" class="rango {% if rango == 'dia' %}activo{% endif %}">Dia</a>
+            <a href="?rango=semana&fecha={{ ancla|date:'Y-m-d' }}" class="rango {% if rango == 'semana' %}activo{% endif %}">Semana</a>
+            <a href="?rango=mes&fecha={{ ancla|date:'Y-m-d' }}" class="rango {% if rango == 'mes' %}activo{% endif %}">Mes</a>
+        </div>
+
+        <div class="navegar" role="group" aria-label="Cambiar de periodo">
+            <a href="?rango={{ rango }}&fecha={{ nav_anterior|date:'Y-m-d' }}" class="nav-btn" aria-label="Periodo anterior" title="Anterior">◀</a>
+            <form method="get" class="nav-fecha">
+                <input type="hidden" name="rango" value="{{ rango }}">
+                {% if rango == 'mes' %}
+                <input type="month" name="fecha" value="{{ ancla|date:'Y-m' }}" aria-label="Elegir mes" onchange="this.form.requestSubmit()">
+                {% else %}
+                <input type="date" name="fecha" value="{{ ancla|date:'Y-m-d' }}" aria-label="Elegir fecha" onchange="this.form.requestSubmit()">
+                {% endif %}
+            </form>
+            <a href="?rango={{ rango }}&fecha={{ nav_siguiente|date:'Y-m-d' }}" class="nav-btn" aria-label="Periodo siguiente" title="Siguiente">▶</a>
+            {% if not es_hoy %}<a href="?rango={{ rango }}" class="nav-hoy">Volver a hoy</a>{% endif %}
+        </div>
+
+        <span class="dash-etiqueta">{{ etiqueta }}</span>
+        <a href="{% url 'exportar_excel' %}?rango={{ rango }}&fecha={{ ancla|date:'Y-m-d' }}" class="btn-exportar" data-nav="normal">⬇ Exportar Excel</a>
     </div>
 
-    <p style="font-size:13px; color:var(--ink-soft); margin-bottom:16px;">{{ etiqueta }}</p>
+    <div class="dash-cuerpo">
 
-    <div class="grid" style="grid-template-columns: repeat(3, minmax(0,1fr)); margin-bottom:24px;">
-        <div class="card" style="padding:14px;">
-            <p style="font-size:11px; color:var(--ink-soft); margin:0 0 6px;">Ordenes</p>
-            <p class="precio" style="font-size:22px;">{{ total_ordenes }}</p>
+        <nav class="dash-menu" aria-label="Secciones">
+            <a href="#resumen" class="menu-item activo" data-seccion="resumen">Resumen</a>
+            <a href="#vendido" class="menu-item" data-seccion="vendido">Que se vendio</a>
+            <a href="#bebidas" class="menu-item" data-seccion="bebidas">Bebidas</a>
+            <a href="#ordenes" class="menu-item" data-seccion="ordenes">Ordenes</a>
+            <a href="/admin/" class="menu-item menu-externo" data-nav="normal">Productos y usuarios</a>
+        </nav>
+
+        <div class="dash-contenido">
+
+            <section class="seccion" id="sec-resumen">
+    <div class="kpis">
+        <div class="kpi kpi-hero">
+            <p class="kpi-label">Ingresos</p>
+            <p class="kpi-valor">${{ kpi.ingresos|floatformat:2 }}</p>
+            {% include "pedidos/_delta.html" with d=deltas.ingresos %}
         </div>
-        <div class="card" style="padding:14px;">
-            <p style="font-size:11px; color:var(--ink-soft); margin:0 0 6px;">Ingresos</p>
-            <p class="precio" style="font-size:22px;">${{ ingreso_total|floatformat:2 }}</p>
+        <div class="kpi">
+            <p class="kpi-label">Ordenes</p>
+            <p class="kpi-valor">{{ kpi.ordenes }}</p>
+            {% include "pedidos/_delta.html" with d=deltas.ordenes %}
         </div>
-        <div class="card" style="padding:14px;">
-            <p style="font-size:11px; color:var(--ink-soft); margin:0 0 6px;">Ticket prom.</p>
-            <p class="precio" style="font-size:22px;">${{ ticket_promedio|floatformat:2 }}</p>
+        <div class="kpi">
+            <p class="kpi-label">Ticket promedio</p>
+            <p class="kpi-valor">${{ kpi.ticket|floatformat:2 }}</p>
+            {% include "pedidos/_delta.html" with d=deltas.ticket %}
+        </div>
+        <div class="kpi">
+            <p class="kpi-label">Productos vendidos</p>
+            <p class="kpi-valor">{{ kpi.items }}</p>
+            {% include "pedidos/_delta.html" with d=deltas.items %}
         </div>
     </div>
 
-    <a href="{% url 'exportar_excel' %}?rango={{ rango }}" class="btn" style="display:block; text-align:center; text-decoration:none; margin-bottom:24px;">
-        Exportar a Excel
-    </a>
+                <div class="dash-grid">
+        <section class="panel panel-ancho">
+            <header class="panel-head">
+                <h2>{{ titulo_serie }}</h2>
+                <span class="panel-sub">Ingresos por {% if rango == 'dia' %}hora{% else %}dia{% endif %} · pasa el dedo para ver el detalle</span>
+            </header>
+            <div class="grafico" id="g-serie" data-tipo="columnas"></div>
+        </section>
 
-    <h3 style="font-family:'Anton',sans-serif; color:var(--navy); text-transform:uppercase;">Mas vendidos</h3>
-    {% for p in productos_vendidos %}
-    <div class="toggle-row">
-        <span>{{ p.producto__nombre }}</span>
-        <span style="font-weight:700; color:var(--navy);">{{ p.cantidad_total }}</span>
+        <section class="panel panel-ancho">
+            <header class="panel-head">
+                <h2>Mas vendidos</h2>
+                <span class="panel-sub">Unidades por producto</span>
+            </header>
+            <div class="grafico" id="g-top" data-tipo="barras"></div>
+        </section>
+
+                </div>
+            </section>
+
+            <section class="seccion" id="sec-vendido" hidden>
+                <div class="dash-grid">
+        <section class="panel panel-ancho">
+            <header class="panel-head">
+                <h2>Que se vendio</h2>
+                <span class="panel-sub">Unidades por producto, agrupadas por categoria. Los cambios de acompañamiento se cuentan aparte.</span>
+            </header>
+            {% if desglose %}
+            <div class="desglose">
+                {% for cat in desglose %}
+                <div class="desglose-cat">
+                    <div class="desglose-head">
+                        <span class="desglose-nombre">{{ cat.nombre }}</span>
+                        <span class="desglose-total">{{ cat.cantidad }} uds · ${{ cat.ingresos|floatformat:2 }}</span>
+                    </div>
+                    <ul class="desglose-lista">
+                        {% for f in cat.filas %}
+                        <li><strong>{{ f.cantidad }}</strong><span>{{ f.nombre }}</span><em>${{ f.ingresos|floatformat:2 }}</em></li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p class="vacio">Sin ventas en este periodo.</p>
+            {% endif %}
+        </section>
+
+                </div>
+            </section>
+
+            <section class="seccion" id="sec-bebidas" hidden>
+                <div class="dash-grid">
+        <section class="panel panel-ancho">
+            <header class="panel-head panel-head-fila">
+                <div>
+                    <h2>Inventario de bebidas y gaseosas</h2>
+                    <span class="panel-sub">Activa "Llevar conteo" en las que vienen en botella o lata, escribe las unidades y guarda. Se descuentan solas con cada orden; en 0 el mesero las ve agotadas. Las que se preparan (jugos) van sin conteo.</span>
+                </div>
+                {% if request.GET.guardado %}<span class="aviso-ok">✓ Inventario guardado</span>{% endif %}
+            </header>
+            <form method="post" action="{% url 'actualizar_stock' %}" class="inv-form">
+                {% csrf_token %}
+                <input type="hidden" name="volver" value="rango={{ rango }}&fecha={{ ancla|date:'Y-m-d' }}">
+                <div class="tabla-scroll">
+                    <table class="tabla inv-tabla">
+                        <thead>
+                            <tr>
+                                <th>Producto</th><th>Tipo</th><th class="num">Vendidas en el periodo</th>
+                                <th>Llevar conteo</th><th>Unidades en stock</th><th>Agregar rapido</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for fila in inventario %}
+                            {% with p=fila.p %}
+                            <tr class="{% if p.controla_stock and p.stock == 0 %}inv-agotado{% elif p.stock_bajo %}inv-bajo{% endif %}">
+                                <td><strong>{{ p.nombre }}</strong></td>
+                                <td class="detalle">{{ p.get_categoria_display }}</td>
+                                <td class="num">{{ fila.vendidas }}</td>
+                                <td>
+                                    <label class="inv-switch">
+                                        <input type="checkbox" name="controla_{{ p.id }}" value="1" {% if p.controla_stock %}checked{% endif %} data-fila="{{ p.id }}">
+                                        <span></span>
+                                    </label>
+                                </td>
+                                <td>
+                                    <input type="number" min="0" step="1" name="stock_{{ p.id }}" id="stock-{{ p.id }}" class="inv-input"
+                                           value="{{ p.stock|default_if_none:'' }}" {% if not p.controla_stock %}disabled{% endif %}>
+                                </td>
+                                <td class="inv-rapido">
+                                    <button type="button" data-suma="6" data-target="stock-{{ p.id }}" {% if not p.controla_stock %}disabled{% endif %}>+6</button>
+                                    <button type="button" data-suma="12" data-target="stock-{{ p.id }}" {% if not p.controla_stock %}disabled{% endif %}>+12</button>
+                                    <button type="button" data-suma="24" data-target="stock-{{ p.id }}" {% if not p.controla_stock %}disabled{% endif %}>+24</button>
+                                </td>
+                            </tr>
+                            {% endwith %}
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                <div class="inv-acciones">
+                    <button type="submit" class="btn-guardar">Guardar inventario</button>
+                </div>
+            </form>
+        </section>
+
+                </div>
+            </section>
+
+            <section class="seccion" id="sec-ordenes" hidden>
+                <div class="dash-grid">
+        <section class="panel panel-ancho">
+            <header class="panel-head">
+                <h2>Todas las ordenes del periodo</h2>
+                <span class="panel-sub">{{ todas|length }} orden{{ todas|length|pluralize:"es" }} · {{ etiqueta }}</span>
+            </header>
+            <div class="tabla-scroll tabla-alta">
+                <table class="tabla">
+                    <thead>
+                        <tr><th>#</th><th>Mesa</th><th>Fecha</th><th>Detalle</th><th class="num">Items</th><th class="num">Total</th></tr>
+                    </thead>
+                    <tbody>
+                        {% for o in todas %}
+                        <tr>
+                            <td class="mono">{{ o.id }}</td>
+                            <td class="mono">Mesa {{ o.mesa.numero }}</td>
+                            <td class="mono">{{ o.creado|date:"d/m H:i" }}</td>
+                            <td class="detalle">{% for it in o.items.all %}{{ it.cantidad }}x {{ it.descripcion }}{% if not forloop.last %} · {% endif %}{% endfor %}</td>
+                            <td class="num">{% with n=o.items.all %}{{ n|length }}{% endwith %}</td>
+                            <td class="num"><strong>${{ o.total|floatformat:2 }}</strong></td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="6" class="vacio">Sin ordenes en este periodo.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                    {% if todas %}
+                    <tfoot>
+                        <tr><td colspan="5" class="num"><strong>Total del periodo</strong></td><td class="num"><strong>${{ kpi.ingresos|floatformat:2 }}</strong></td></tr>
+                    </tfoot>
+                    {% endif %}
+                </table>
+            </div>
+        </section>
+                </div>
+            </section>
+
+        </div>
     </div>
-    {% empty %}
-    <p style="font-size:13px; color:var(--ink-soft);">Sin ventas en este periodo.</p>
-    {% endfor %}
 
-    <h3 style="font-family:'Anton',sans-serif; color:var(--navy); text-transform:uppercase; margin-top:30px;">Registro de acciones</h3>
-    {% for r in registros %}
-    <p style="font-size:12.5px; color:var(--ink-soft); border-bottom:1px dashed #D9D0BC; padding:6px 0;">
-        <strong style="color:var(--navy);">{{ r.usuario }}</strong> — {{ r.accion }}
-        <span style="float:right;">{{ r.fecha|date:"d/m H:i" }}</span>
-    </p>
-    {% empty %}
-    <p style="font-size:13px; color:var(--ink-soft);">Sin acciones registradas todavia.</p>
-    {% endfor %}
-
+    <div class="tooltip" id="tooltip" hidden role="status"></div>
 </div>
+
+{{ datos|json_script:"datos-dashboard" }}
+<script>
+// Graficos SVG sin librerias. Una sola serie por grafico: un tono (navy) para la magnitud,
+// mostaza solo para la barra destacada (hoy / la mayor), siempre con su valor escrito.
+const DATOS = JSON.parse(document.getElementById('datos-dashboard').textContent);
+const NS = 'http://www.w3.org/2000/svg';
+const dinero = n => '$' + n.toFixed(2).replace('.', ',');
+const el = (tag, attrs = {}, texto) => {
+    const e = document.createElementNS(NS, tag);
+    for (const k in attrs) e.setAttribute(k, attrs[k]);
+    if (texto !== undefined) e.textContent = texto;
+    return e;
+};
+const tooltip = document.getElementById('tooltip');
+const mostrarTip = (evt, titulo, filas) => {
+    tooltip.replaceChildren();
+    const t = document.createElement('div'); t.className = 'tip-titulo'; t.textContent = titulo; tooltip.appendChild(t);
+    filas.forEach(([v, l]) => {
+        const f = document.createElement('div'); f.className = 'tip-fila';
+        const sv = document.createElement('strong'); sv.textContent = v;
+        const sl = document.createElement('span'); sl.textContent = l;
+        f.append(sv, sl); tooltip.appendChild(f);
+    });
+    tooltip.hidden = false;
+    const x = Math.min(evt.clientX + 14, window.innerWidth - tooltip.offsetWidth - 12);
+    tooltip.style.left = x + 'px';
+    tooltip.style.top = (evt.clientY + 14) + 'px';
+};
+const ocultarTip = () => { tooltip.hidden = true; };
+const escalaLimpia = max => {
+    if (max <= 0) return 10;
+    const p = Math.pow(10, Math.floor(Math.log10(max)));
+    for (const m of [1, 2, 2.5, 5, 10]) if (m * p >= max) return m * p;
+    return 10 * p;
+};
+
+// Columnas: serie temporal de ingresos
+function columnas(cont, serie) {
+    cont.replaceChildren();
+    if (!serie.length || !serie.some(d => d.valor > 0)) { cont.innerHTML = '<p class="vacio">Sin ventas en este periodo.</p>'; return; }
+    const W = cont.clientWidth, H = 240, m = { t: 22, r: 12, b: 30, l: 46 };
+    const iw = W - m.l - m.r, ih = H - m.t - m.b;
+    const max = escalaLimpia(Math.max(...serie.map(d => d.valor)));
+    const svg = el('svg', { width: W, height: H, viewBox: `0 0 ${W} ${H}`, role: 'img', 'aria-label': 'Ingresos en el tiempo' });
+    // grid recesivo + ticks
+    for (let i = 0; i <= 4; i++) {
+        const y = m.t + ih - ih * i / 4;
+        svg.appendChild(el('line', { x1: m.l, x2: W - m.r, y1: y, y2: y, class: 'grid' }));
+        svg.appendChild(el('text', { x: m.l - 8, y: y + 4, class: 'tick', 'text-anchor': 'end' }, '$' + Math.round(max * i / 4)));
+    }
+    const banda = iw / serie.length, ancho = Math.min(24, banda * 0.6);
+    // una sola barra destacada: hoy si esta en el rango; si no, la mayor
+    const iMax = serie.reduce((b, d, i) => d.valor > serie[b].valor ? i : b, 0);
+    const hayHoy = serie.some(d => d.destacar);
+    const paso = Math.ceil(serie.length / 12);   // etiquetas del eje x sin amontonar
+    serie.forEach((d, i) => {
+        const x = m.l + banda * i + (banda - ancho) / 2;
+        const h = ih * d.valor / max;
+        const y = m.t + ih - h;
+        const destacado = hayHoy ? d.destacar : i === iMax;
+        const g = el('g', { class: 'hit' });
+        g.appendChild(el('rect', { x: m.l + banda * i, y: m.t, width: banda, height: ih, fill: 'transparent' }));
+        if (h > 0) {
+            const r = Math.min(4, h / 2);
+            g.appendChild(el('path', {
+                d: `M${x},${m.t + ih} v${-(h - r)} a${r},${r} 0 0 1 ${r},${-r} h${ancho - 2 * r} a${r},${r} 0 0 1 ${r},${r} v${h - r} z`,
+                class: 'barra' + (destacado ? ' destacada' : '')
+            }));
+        }
+        if (destacado && d.valor > 0) svg.appendChild(el('text', { x: x + ancho / 2, y: y - 6, class: 'valor', 'text-anchor': 'middle' }, dinero(d.valor)));
+        if (i % paso === 0) svg.appendChild(el('text', { x: x + ancho / 2, y: H - 10, class: 'tick', 'text-anchor': 'middle' }, d.etiqueta));
+        g.addEventListener('pointermove', e => mostrarTip(e, d.titulo || d.etiqueta, [[dinero(d.valor), 'ingresos'], [d.ordenes, d.ordenes === 1 ? 'orden' : 'ordenes']]));
+        g.addEventListener('pointerleave', ocultarTip);
+        svg.appendChild(g);
+    });
+    svg.appendChild(el('line', { x1: m.l, x2: W - m.r, y1: m.t + ih, y2: m.t + ih, class: 'eje' }));
+    cont.appendChild(svg);
+}
+
+// Barras horizontales: ranking (valor en la punta)
+function barras(cont, filas, campoNombre, campoValor, fmt, campoExtra, fmtExtra) {
+    cont.replaceChildren();
+    if (!filas.length) { cont.innerHTML = '<p class="vacio">Sin ventas en este periodo.</p>'; return; }
+    const W = cont.clientWidth, filaH = 34, m = { t: 6, r: 64, b: 6, l: 8 };
+    const H = m.t + m.b + filaH * filas.length;
+    const etiqW = Math.min(190, W * 0.42);
+    const iw = Math.min(560, W - m.l - m.r - etiqW);   // barras con largo maximo para paneles anchos
+    const max = Math.max(...filas.map(f => f[campoValor])) || 1;
+    const svg = el('svg', { width: W, height: H, viewBox: `0 0 ${W} ${H}`, role: 'img', 'aria-label': 'Ranking' });
+    filas.forEach((f, i) => {
+        const y = m.t + filaH * i, cy = y + filaH / 2;
+        const g = el('g', { class: 'hit' });
+        g.appendChild(el('rect', { x: 0, y, width: W, height: filaH, fill: 'transparent' }));
+        const nombre = String(f[campoNombre]);
+        g.appendChild(el('text', { x: m.l, y: cy + 4, class: 'etiq' }, nombre.length > 24 ? nombre.slice(0, 23) + '…' : nombre));
+        const w = Math.max(2, iw * f[campoValor] / max), x0 = m.l + etiqW, r = 4;
+        g.appendChild(el('path', { d: `M${x0},${cy - 9} h${w - r} a${r},${r} 0 0 1 ${r},${r} v${18 - 2 * r} a${r},${r} 0 0 1 ${-r},${r} h${-(w - r)} z`, class: 'barra' + (i === 0 ? ' destacada' : '') }));
+        g.appendChild(el('text', { x: x0 + w + 8, y: cy + 4, class: 'valor' }, fmt(f[campoValor])));
+        const extra = campoExtra ? [[fmtExtra(f[campoExtra]), campoExtra === 'ingresos' ? 'en ingresos' : campoExtra]] : [];
+        g.addEventListener('pointermove', e => mostrarTip(e, nombre, [[fmt(f[campoValor]), campoValor === 'cantidad' ? 'unidades' : 'ingresos'], ...extra]));
+        g.addEventListener('pointerleave', ocultarTip);
+        svg.appendChild(g);
+    });
+    cont.appendChild(svg);
+}
+
+function dibujar() {
+    columnas(document.getElementById('g-serie'), DATOS.serie);
+    barras(document.getElementById('g-top'), DATOS.top, 'nombre', 'cantidad', v => v + ' uds', 'ingresos', dinero);
+}
+// Secciones del menu lateral: se recuerda la ultima abierta (hash o localStorage)
+(() => {
+    const items = document.querySelectorAll('.menu-item[data-seccion]');
+    const mostrar = nombre => {
+        if (!document.getElementById('sec-' + nombre)) nombre = 'resumen';
+        document.querySelectorAll('.seccion').forEach(s => s.hidden = s.id !== 'sec-' + nombre);
+        items.forEach(i => i.classList.toggle('activo', i.dataset.seccion === nombre));
+        try { localStorage.setItem('dash-seccion', nombre); } catch (e) {}
+        if (nombre === 'resumen') dibujar();   // los graficos necesitan ancho real para dibujarse
+    };
+    items.forEach(i => i.addEventListener('click', e => { e.preventDefault(); history.replaceState({}, '', '#' + i.dataset.seccion); mostrar(i.dataset.seccion); }));
+    let inicial = location.hash.slice(1);
+    if (!inicial) { try { inicial = localStorage.getItem('dash-seccion') || 'resumen'; } catch (e) { inicial = 'resumen'; } }
+    mostrar(inicial);
+    // al cambiar de periodo, seguir en la misma seccion
+    document.querySelectorAll('.dash-filtros a:not(.btn-exportar)').forEach(a => a.addEventListener('click', () => {
+        const activa = document.querySelector('.menu-item.activo');
+        if (activa) a.href = a.href.split('#')[0] + '#' + activa.dataset.seccion;
+    }));
+})();
+let t; window.addEventListener('resize', () => { clearTimeout(t); t = setTimeout(dibujar, 150); });
+
+// Inventario: el switch habilita la fila; los botones +6/+12/+24 suman al campo
+document.querySelectorAll('.inv-switch input').forEach(chk => {
+    chk.addEventListener('change', () => {
+        const fila = chk.closest('tr');
+        const input = fila.querySelector('.inv-input');
+        input.disabled = !chk.checked;
+        if (chk.checked && input.value === '') input.value = 0;
+        fila.querySelectorAll('.inv-rapido button').forEach(b => b.disabled = !chk.checked);
+    });
+});
+document.querySelectorAll('.inv-rapido button').forEach(btn => {
+    btn.addEventListener('click', () => {
+        const input = document.getElementById(btn.dataset.target);
+        input.value = (parseInt(input.value, 10) || 0) + parseInt(btn.dataset.suma, 10);
+    });
+});
+</script>
 {% endblock %}

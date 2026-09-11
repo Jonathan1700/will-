@@ -5,7 +5,115 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block titulo %}Pedidos{% endblock %}</title>
-    <link rel="stylesheet" href="{% static 'pedidos/estilo.css' %}">
+    <link rel="stylesheet" href="{% static 'pedidos/estilo.css' %}?v={{ css_version }}">
+    <link rel="manifest" href="{% static 'pedidos/manifest.webmanifest' %}">
+    <meta name="theme-color" content="#1B2A4A">
+    <meta name="mobile-web-app-capable" content="yes">
+    <link rel="apple-touch-icon" href="{% static 'pedidos/iconos/icono-192.png' %}">
+<script>
+// ---------------------------------------------------------------------------------
+// Navegacion "suave" mientras la app esta en pantalla completa.
+// El navegador sale de pantalla completa cada vez que cambia de pagina, asi que en ese
+// modo los enlaces y formularios se cargan con fetch y se reemplaza el <body> en sitio:
+// la pagina nunca "cambia" y la pantalla completa se mantiene. Fuera de pantalla completa
+// todo funciona como siempre (navegacion normal).
+// ---------------------------------------------------------------------------------
+(() => {
+    const activa = () => !!document.fullscreenElement || window.NAV_SUAVE === true;
+
+    // los setInterval de cada pantalla se limpian al cambiar de contenido
+    const intervalos = new Set();
+    const _setInterval = window.setInterval.bind(window);
+    window.setInterval = (fn, ms, ...args) => { const id = _setInterval(fn, ms, ...args); intervalos.add(id); return id; };
+
+    const reemplazar = (html, url) => {
+        const doc = new DOMParser().parseFromString(html, 'text/html');
+        intervalos.forEach(clearInterval); intervalos.clear();
+        document.title = doc.title;
+        document.body.replaceChildren(...doc.body.childNodes);
+        // los <script> insertados asi no corren solos: se recrean (envueltos para no chocar consts)
+        document.body.querySelectorAll('script').forEach(viejo => {
+            const nuevo = document.createElement('script');
+            nuevo.textContent = '(() => {\n' + viejo.textContent + '\n})();';
+            viejo.replaceWith(nuevo);
+        });
+        if (url && url !== location.href) history.pushState({}, '', url);
+        window.scrollTo(0, 0);
+        window.dispatchEvent(new Event('navegacion:cargada'));
+    };
+
+    const cargar = async (url, opts = {}) => {
+        let r;
+        try {
+            r = await fetch(url, { credentials: 'same-origin', ...opts });
+        } catch (e) {
+            location.href = url;   // sin red: navegacion normal
+            return;
+        }
+        const tipo = r.headers.get('content-type') || '';
+        if (tipo.includes('application/json')) {
+            const d = await r.json().catch(() => ({}));
+            alert(d.error || 'No se pudo completar la accion');
+            return;
+        }
+        if (!tipo.includes('text/html')) { location.href = r.url; return; }   // ej: descarga de Excel
+        reemplazar(await r.text(), r.url);
+    };
+
+    // recarga que respeta la pantalla completa (la usan cocina y elegir mesa)
+    window.recargar = () => activa() ? cargar(location.href) : location.reload();
+
+    document.addEventListener('click', e => {
+        const a = e.target.closest('a[href]');
+        if (!a || !activa() || a.target || a.hasAttribute('download') || a.dataset.nav === 'normal') return;
+        if (e.ctrlKey || e.metaKey || e.shiftKey || e.button !== 0) return;
+        const url = new URL(a.href, location.href);
+        if (url.origin !== location.origin) return;
+        if (url.pathname === location.pathname && url.search === location.search && url.hash) return;  // ancla en la misma pagina
+        e.preventDefault();
+        cargar(url.href);
+    });
+
+    document.addEventListener('submit', e => {
+        const f = e.target;
+        if (!activa() || f.dataset.nav === 'normal') return;
+        e.preventDefault();
+        const datos = new FormData(f);
+        if (e.submitter && e.submitter.name) datos.append(e.submitter.name, e.submitter.value);
+        const action = f.getAttribute('action') || location.href;
+        if ((f.method || 'get').toLowerCase() === 'get') {
+            cargar(action + (action.includes('?') ? '&' : '?') + new URLSearchParams(datos));
+        } else {
+            cargar(action, { method: 'POST', body: datos });
+        }
+    });
+
+    window.addEventListener('popstate', () => activa() ? cargar(location.href) : location.reload());
+})();
+
+// Boton ⛶ de la cabecera. Si la app se abrio desde el icono de la pantalla de inicio
+// (modo app) ya esta a pantalla completa y el boton se oculta.
+(() => {
+    const enModoApp = matchMedia('(display-mode: fullscreen), (display-mode: standalone)').matches;
+    const soporta = !!document.documentElement.requestFullscreen;
+    const pintar = () => {
+        const btn = document.getElementById('btn-fullscreen');
+        if (!btn) return;
+        if (enModoApp || !soporta) { btn.hidden = true; return; }
+        const activo = !!document.fullscreenElement;
+        btn.textContent = activo ? '✕ salir' : '⛶';
+        btn.title = activo ? 'Salir de pantalla completa' : 'Pantalla completa';
+    };
+    document.addEventListener('click', e => {
+        if (!e.target.closest('#btn-fullscreen')) return;
+        if (document.fullscreenElement) document.exitFullscreen();
+        else document.documentElement.requestFullscreen().catch(() => {});
+    });
+    document.addEventListener('fullscreenchange', pintar);
+    document.addEventListener('DOMContentLoaded', pintar);
+    window.addEventListener('navegacion:cargada', pintar);
+})();
+</script>
 </head>
 <body>
     {% block contenido %}{% endblock %}

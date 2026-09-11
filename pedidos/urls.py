@@ -11,6 +11,8 @@ urlpatterns = [
     path("", views.elegir_mesa, name="elegir_mesa"),
     path("mesa/<int:mesa_id>/", views.menu_mesa, name="menu_mesa"),
     path("orden/<int:orden_id>/agregar/<int:producto_id>/", views.agregar_item, name="agregar_item"),
+    path("orden/<int:orden_id>/item/<int:item_id>/cantidad/", views.cambiar_cantidad, name="cambiar_cantidad"),
+    path("orden/<int:orden_id>/items/eliminar/", views.eliminar_items, name="eliminar_items"),
     path("orden/<int:orden_id>/confirmar/", views.confirmar_orden, name="confirmar_orden"),
     path("api/disponibilidad/", views.disponibilidad_json, name="disponibilidad_json"),
     path("api/listas/", views.ordenes_listas_json, name="ordenes_listas_json"),
@@ -21,8 +23,10 @@ urlpatterns = [
     path("cocina/api/pendientes/", views.ordenes_pendientes_json, name="ordenes_pendientes_json"),
     path("cocina/orden/<int:orden_id>/entregada/", views.marcar_entregada, name="marcar_entregada"),
     path("cocina/producto/<int:producto_id>/toggle/", views.toggle_disponibilidad, name="toggle_disponibilidad"),
+    path("cocina/producto/<int:producto_id>/temporizador/", views.poner_temporizador, name="poner_temporizador"),
 
     # admin / reportes
     path("reportes/", views.reportes, name="reportes"),
     path("reportes/exportar/", views.exportar_excel, name="exportar_excel"),
+    path("reportes/stock/", views.actualizar_stock, name="actualizar_stock"),
 ]

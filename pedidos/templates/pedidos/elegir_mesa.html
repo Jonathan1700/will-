@@ -2,8 +2,11 @@
 {% block titulo %}Elegir mesa{% endblock %}
 {% block contenido %}
 <header class="top">
-    <span class="titulo">Asadero Don Beto</span>
-    <a href="{% url 'logout' %}" class="mesa" style="text-decoration:none;">Salir</a>
+    <span class="titulo">Brasas</span>
+    <span class="top-acciones">
+        <button type="button" class="top-fullscreen" id="btn-fullscreen" aria-label="Pantalla completa">⛶</button>
+        <a href="{% url 'logout' %}" class="mesa" style="text-decoration:none;">Salir</a>
+    </span>
 </header>
 <div class="app">
 
@@ -52,7 +55,7 @@ setInterval(() => {
         .then(r => r.json())
         .then(data => {
             if (data.listas.map(o => o.id).join(',') !== listasActual) {
-                window.location.reload();
+                recargar();
             }
         });
 }, 8000);

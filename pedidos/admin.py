@@ -9,8 +9,9 @@ class MesaAdmin(admin.ModelAdmin):
 
 @admin.register(Producto)
 class ProductoAdmin(admin.ModelAdmin):
-    list_display = ("nombre", "categoria", "precio", "disponible", "controla_stock", "stock", "es_combo", "requiere_pieza")
-    list_editable = ("disponible", "stock")
+    list_display = ("nombre", "categoria", "precio", "acompanamiento_incluido", "precio_cambio",
+                    "disponible", "listo_en", "controla_stock", "stock", "es_combo", "requiere_pieza")
+    list_editable = ("disponible", "stock", "precio_cambio")
     list_filter = ("categoria", "disponible", "controla_stock", "es_combo", "requiere_pieza")
 
 

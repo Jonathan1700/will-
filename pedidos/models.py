@@ -16,12 +16,15 @@ class Producto(models.Model):
     CATEGORIAS = [
         ("combos", "Combos"),
         ("pollo", "Pollo"),
-        ("papas", "Papas"),
+        ("acompanamientos", "Acompañamientos"),
         ("bebidas", "Bebidas"),
-        ("otros", "Otros"),
+        ("gaseosas", "Gaseosas"),
     ]
 
     PIEZAS_POLLO = ["Pechuga", "Cadera", "Muslo", "Pierna"]
+
+    # opciones del temporizador de cocina (minutos): un toque, sin escribir
+    TEMPORIZADORES = [5, 10, 15, 20, 25]
 
     nombre = models.CharField(max_length=100)
     precio = models.DecimalField(max_digits=6, decimal_places=2)
@@ -33,7 +36,11 @@ class Producto(models.Model):
     # disponibilidad manual: cocina la prende/apaga (ej: se acabaron las papas)
     disponible = models.BooleanField(default=True)
 
-    # stock: solo aplica a bebidas embotelladas/enlatadas
+    # temporizador de cocina: "faltan X min para que salgan las papas". El mesero lo ve en su
+    # tablet en tiempo real. Se calcula al vuelo; vencido, se ignora.
+    listo_en = models.DateTimeField(null=True, blank=True)
+
+    # stock: solo aplica a gaseosas (botella/lata); el admin lo actualiza en /admin/
     controla_stock = models.BooleanField(default=False)
     stock = models.IntegerField(null=True, blank=True)
 
@@ -44,8 +51,22 @@ class Producto(models.Model):
     # piezas de pollo (1/8, 1/4): el mesero debe elegir pechuga/cadera/muslo/pierna
     requiere_pieza = models.BooleanField(default=False)
 
+    # platos: lo que trae por defecto y que el cliente puede cambiar (ej: "Papas fritas").
+    # Si esta vacio, el plato no permite cambiar acompañamiento.
+    acompanamiento_incluido = models.CharField(max_length=100, blank=True)
+
+    # acompañamientos: precio cuando REEMPLAZA lo incluido en un plato ("Mejora tu combo").
+    # Vacio = no se puede usar como cambio. Pedido aparte se cobra a `precio` normal.
+    precio_cambio = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True)
+
     def __str__(self):
         return self.nombre
+
+    def permite_cambio(self):
+        return bool(self.acompanamiento_incluido)
+
+    def es_cambio_valido(self):
+        return self.precio_cambio is not None
 
     def esta_disponible(self):
         """Regla unica: disponible manualmente Y (si controla stock) con stock > 0."""
@@ -57,6 +78,16 @@ class Producto(models.Model):
 
     def stock_bajo(self, umbral=3):
         return self.controla_stock and self.stock is not None and 0 < self.stock <= umbral
+
+    def segundos_restantes(self):
+        """Segundos que faltan del temporizador de cocina (0 si no hay o ya vencio)."""
+        if not self.listo_en:
+            return 0
+        return max(0, int((self.listo_en - timezone.now()).total_seconds()))
+
+    def minutos_restantes(self):
+        """Minutos redondeados hacia arriba, para mostrar 'faltan 5 min'."""
+        return -(-self.segundos_restantes() // 60)
 
 
 class Orden(models.Model):
@@ -91,11 +122,31 @@ class DetalleOrden(models.Model):
     cantidad = models.IntegerField(default=1)
     notas = models.CharField(max_length=200, blank=True)
 
+    # acompañamiento que reemplaza al incluido del plato (se cobra a precio_cambio, no a precio)
+    acompanamiento = models.ForeignKey(
+        Producto, on_delete=models.PROTECT, null=True, blank=True, related_name="+"
+    )
+
     def __str__(self):
-        return f"{self.cantidad}x {self.producto.nombre}"
+        return f"{self.cantidad}x {self.descripcion()}"
+
+    def descripcion(self):
+        """Nombre para ticket de cocina: '1/4 Pollo (Pierna) · cambio: Moroclo'."""
+        texto = self.producto.nombre
+        if self.notas:
+            texto += f" ({self.notas})"
+        if self.acompanamiento:
+            texto += f" · sin {self.producto.acompanamiento_incluido.lower()}, con {self.acompanamiento.nombre}"
+        return texto
+
+    def precio_unitario(self):
+        precio = self.producto.precio
+        if self.acompanamiento and self.acompanamiento.precio_cambio is not None:
+            precio += self.acompanamiento.precio_cambio
+        return precio
 
     def subtotal(self):
-        return self.producto.precio * self.cantidad
+        return self.precio_unitario() * self.cantidad
 
 
 class RegistroAccion(models.Model):

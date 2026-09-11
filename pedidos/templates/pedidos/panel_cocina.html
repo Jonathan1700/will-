@@ -3,9 +3,14 @@
 {% block contenido %}
 <header class="top">
     <span class="titulo">Cocina</span>
-    <a href="{% url 'logout' %}" class="mesa" style="text-decoration:none;">Salir</a>
+    <span class="top-acciones">
+        <button type="button" class="top-fullscreen" id="btn-fullscreen" aria-label="Pantalla completa">⛶</button>
+        <a href="{% url 'logout' %}" class="mesa" style="text-decoration:none;">Salir</a>
+    </span>
 </header>
-<div class="app" id="comandas-contenedor">
+<div class="cocina">
+
+<section class="comandas" aria-label="Pedidos pendientes">
     {% for orden in ordenes %}
     <div class="comanda" data-orden-id="{{ orden.id }}">
         <div class="comanda-header">
@@ -38,8 +43,9 @@
                     <td>
                         {{ item.producto.nombre }}
                         {% if item.notas %}<span class="t-nota">{{ item.notas }}</span>{% endif %}
+                        {% if item.acompanamiento %}<span class="t-nota t-cambio">sin {{ item.producto.acompanamiento_incluido|lower }} → {{ item.acompanamiento.nombre }}</span>{% endif %}
                     </td>
-                    <td class="t-num">${{ item.producto.precio }}</td>
+                    <td class="t-num">${{ item.precio_unitario }}</td>
                     <td class="t-num">${{ item.subtotal }}</td>
                 </tr>
                 {% endfor %}
@@ -57,32 +63,127 @@
         </form>
     </div>
     {% empty %}
-    <p>No hay pedidos pendientes por ahora.</p>
+    <p class="comandas-vacio">No hay pedidos pendientes por ahora.</p>
     {% endfor %}
+</section>
 
-    <h3 class="seccion-titulo">Disponibilidad rapida</h3>
-    <p class="seccion-ayuda">Toca un producto para activarlo o marcarlo como agotado.</p>
+<aside class="control" aria-label="Disponibilidad">
+    <h3 class="seccion-titulo">Disponibilidad</h3>
+    <p class="seccion-ayuda">Cocina: toca para agotado o tiempo. Bebidas: toca y cambia al instante.</p>
+
+    {% for nombre_cat, lista in grupos %}
+    <h4 class="disp-cat">{{ nombre_cat }}</h4>
     <div class="disp-grid">
-        {% for producto in productos_todos %}
+        {% for producto in lista %}
+        {% if producto.categoria == 'bebidas' or producto.categoria == 'gaseosas' %}
         <form method="post" action="{% url 'toggle_disponibilidad' producto.id %}">
             {% csrf_token %}
             <button type="submit" class="disp-card {% if producto.disponible %}on{% else %}off{% endif %}">
-                <span class="disp-media">
-                    {% if producto.imagen %}
-                    <img src="{{ producto.imagen.url }}" alt="">
-                    {% else %}
-                    {% if producto.es_combo %}🍽️{% elif producto.categoria == 'bebidas' %}🥤{% elif producto.categoria == 'papas' %}🍟{% else %}🍗{% endif %}
-                    {% endif %}
-                </span>
+                <span class="disp-media">{% if producto.imagen %}<img src="{{ producto.imagen.url }}" alt="">{% elif producto.categoria == 'gaseosas' %}🥤{% else %}🧃{% endif %}</span>
                 <span class="disp-nombre">{{ producto.nombre }}</span>
                 <span class="disp-estado">{% if producto.disponible %}Disponible{% else %}Agotado{% endif %}</span>
             </button>
         </form>
+        {% else %}
+        <button type="button"
+                class="disp-card con-tiempo {% if producto.disponible %}on{% else %}off{% endif %}"
+                data-nombre="{{ producto.nombre }}"
+                data-disponible="{% if producto.disponible %}1{% endif %}"
+                data-segundos="{{ producto.segundos_restantes }}"
+                data-url-toggle="{% url 'toggle_disponibilidad' producto.id %}"
+                data-url-timer="{% url 'poner_temporizador' producto.id %}">
+            <span class="disp-media">{% if producto.imagen %}<img src="{{ producto.imagen.url }}" alt="">{% elif producto.es_combo %}🍽️{% elif producto.categoria == 'acompanamientos' %}🍚{% else %}🍗{% endif %}</span>
+            <span class="disp-nombre">{{ producto.nombre }}</span>
+            <span class="disp-estado">{% if producto.disponible %}Disponible{% else %}Agotado{% endif %}</span>
+            <span class="disp-timer" {% if not producto.segundos_restantes %}hidden{% endif %}>⏱ --:--</span>
+        </button>
+        {% endif %}
         {% endfor %}
+    </div>
+    {% endfor %}
+</aside>
+
+    {# hoja de acciones de un producto de cocina: estado + temporizador con presets #}
+    <div class="modal-overlay" id="modal-producto" hidden>
+        <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="mp-nombre">
+            <div class="sheet-head">
+                <div>
+                    <p class="sheet-titulo" id="mp-nombre"></p>
+                    <p class="sheet-sub" id="mp-estado"></p>
+                </div>
+                <button type="button" class="sheet-cerrar" id="mp-cerrar" aria-label="Cerrar">✕</button>
+            </div>
+            <div class="sheet-body">
+                <form method="post" id="mp-form-toggle">
+                    {% csrf_token %}
+                    <button type="submit" class="btn-estado" id="mp-toggle"></button>
+                </form>
+
+                <h3 class="sheet-seccion" style="margin-top:18px;">Faltan... <span class="sheet-seccion-nota">el mesero lo ve al instante</span></h3>
+                <form method="post" id="mp-form-timer">
+                    {% csrf_token %}
+                    <div class="presets">
+                        {% for m in temporizadores %}
+                        <button type="submit" name="minutos" value="{{ m }}" class="preset">{{ m }}<small>min</small></button>
+                        {% endfor %}
+                    </div>
+                    <button type="submit" name="minutos" value="0" class="preset-quitar" id="mp-quitar" hidden>Quitar temporizador</button>
+                </form>
+            </div>
+        </div>
     </div>
 </div>
 
 <script>
+// Hoja de acciones al tocar un producto: agotado/disponible + temporizador (presets, sin escribir)
+(() => {
+    const modal = document.getElementById('modal-producto');
+    const nombre = document.getElementById('mp-nombre');
+    const estado = document.getElementById('mp-estado');
+    const toggle = document.getElementById('mp-toggle');
+    const quitar = document.getElementById('mp-quitar');
+    const formToggle = document.getElementById('mp-form-toggle');
+    const formTimer = document.getElementById('mp-form-timer');
+    const cerrar = () => { modal.hidden = true; };
+
+    document.querySelectorAll('.disp-card.con-tiempo').forEach(card => {
+        card.addEventListener('click', () => {
+            const disponible = card.dataset.disponible === '1';
+            const segundos = parseInt(card.dataset.segundos, 10) || 0;
+            nombre.textContent = card.dataset.nombre;
+            estado.textContent = (disponible ? 'Disponible' : 'Agotado') +
+                (segundos ? ` · faltan ${Math.ceil(segundos / 60)} min` : '');
+            toggle.textContent = disponible ? 'Marcar como agotado' : 'Marcar como disponible';
+            toggle.className = 'btn-estado ' + (disponible ? 'a-agotado' : 'a-disponible');
+            formToggle.action = card.dataset.urlToggle;
+            formTimer.action = card.dataset.urlTimer;
+            quitar.hidden = segundos === 0;
+            modal.hidden = false;
+        });
+    });
+    document.getElementById('mp-cerrar').addEventListener('click', cerrar);
+    modal.addEventListener('click', e => { if (e.target === modal) cerrar(); });
+})();
+
+// Cuenta regresiva de los temporizadores en las tarjetas (mm:ss)
+(() => {
+    const cards = [...document.querySelectorAll('.disp-card[data-segundos]')]
+        .map(c => ({ el: c, fin: Date.now() + (parseInt(c.dataset.segundos, 10) || 0) * 1000 }))
+        .filter(c => c.fin > Date.now());
+    if (!cards.length) return;
+    const tick = () => {
+        cards.forEach(c => {
+            const s = Math.max(0, Math.round((c.fin - Date.now()) / 1000));
+            const tag = c.el.querySelector('.disp-timer');
+            tag.hidden = s === 0;
+            tag.textContent = `⏱ ${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+            c.el.dataset.segundos = s;
+        });
+    };
+    tick();
+    setInterval(tick, 1000);
+})();
+
 // Revisa cada 8s: si llegaron o salieron pedidos recarga, si no solo refresca
 // los minutos de espera. Asi no interrumpe mientras cocina toca disponibilidad.
 const firmaActual = [{% for orden in ordenes %}{{ orden.id }},{% endfor %}].join(',');
@@ -92,7 +193,7 @@ setInterval(() => {
         .then(r => r.json())
         .then(data => {
             if (data.ordenes.map(o => o.id).join(',') !== firmaActual) {
-                window.location.reload();
+                recargar();
                 return;
             }
             data.ordenes.forEach(o => {

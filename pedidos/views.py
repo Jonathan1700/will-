@@ -6,7 +6,7 @@ from django.utils import timezone
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.db.models import Sum
-from datetime import timedelta
+from datetime import timedelta, date
 import openpyxl
 
 from .models import Mesa, Producto, Orden, DetalleOrden, RegistroAccion
@@ -114,6 +114,12 @@ def menu_mesa(request, mesa_id):
     categoria = request.GET.get("categoria", "combos")
     productos = Producto.objects.filter(categoria=categoria).order_by("nombre")
 
+    # acompañamientos que pueden reemplazar las papas de un plato ("Mejora tu combo")
+    cambios = [
+        p for p in Producto.objects.filter(precio_cambio__isnull=False).order_by("nombre")
+        if p.esta_disponible()
+    ]
+
     contexto = {
         "mesa": mesa,
         "orden": orden,
@@ -121,6 +127,7 @@ def menu_mesa(request, mesa_id):
         "categoria_activa": categoria,
         "categorias": Producto.CATEGORIAS,
         "piezas_pollo": Producto.PIEZAS_POLLO,
+        "acompanamientos_cambio": cambios,
     }
     return render(request, "pedidos/menu_mesa.html", contexto)
 
@@ -142,7 +149,17 @@ def agregar_item(request, orden_id, producto_id):
     else:
         pieza = ""
 
-    item, creado = DetalleOrden.objects.get_or_create(orden=orden, producto=producto, notas=pieza)
+    # cambio de acompañamiento: solo si el plato lo permite y el acompañamiento tiene precio_cambio
+    cambio = None
+    cambio_id = request.POST.get("acompanamiento", "").strip()
+    if cambio_id and producto.permite_cambio():
+        cambio = Producto.objects.filter(id=cambio_id, precio_cambio__isnull=False).first()
+        if cambio is None or not cambio.esta_disponible():
+            return JsonResponse({"ok": False, "error": "Acompañamiento no disponible"}, status=400)
+
+    item, creado = DetalleOrden.objects.get_or_create(
+        orden=orden, producto=producto, notas=pieza, acompanamiento=cambio
+    )
     nueva_cantidad = item.cantidad + 1 if not creado else 1
 
     if producto.controla_stock and nueva_cantidad > producto.stock:
@@ -153,6 +170,48 @@ def agregar_item(request, orden_id, producto_id):
 
     categoria = request.POST.get("categoria", "combos")
     return redirect(f"{reverse('menu_mesa', args=[orden.mesa.id])}?categoria={categoria}")
+
+
+def _volver_al_menu(request, orden, abrir_carrito=False):
+    """URL del menu de la mesa conservando la pestaña activa (y el detalle abierto si se pide)."""
+    categoria = request.POST.get("categoria", "combos")
+    url = f"{reverse('menu_mesa', args=[orden.mesa.id])}?categoria={categoria}"
+    if abrir_carrito:
+        url += "&carrito=1"
+    return url
+
+
+@login_required
+@user_passes_test(es_mesero)
+@require_POST
+def cambiar_cantidad(request, orden_id, item_id):
+    """Botones - / + del detalle de la orden. Si la cantidad llega a 0 se borra la linea."""
+    orden = get_object_or_404(Orden, id=orden_id, estado="abierta")
+    item = get_object_or_404(DetalleOrden, id=item_id, orden=orden)
+    delta = 1 if request.POST.get("delta") == "1" else -1
+    nueva_cantidad = item.cantidad + delta
+
+    if nueva_cantidad <= 0:
+        item.delete()
+    else:
+        producto = item.producto
+        if delta > 0 and producto.controla_stock and nueva_cantidad > (producto.stock or 0):
+            return JsonResponse({"ok": False, "error": "No hay suficiente stock"}, status=400)
+        item.cantidad = nueva_cantidad
+        item.save()
+
+    return redirect(_volver_al_menu(request, orden, abrir_carrito=True))
+
+
+@login_required
+@user_passes_test(es_mesero)
+@require_POST
+def eliminar_items(request, orden_id):
+    """Elimina las lineas marcadas con checkbox en el detalle de la orden."""
+    orden = get_object_or_404(Orden, id=orden_id, estado="abierta")
+    ids = request.POST.getlist("item_ids")
+    orden.items.filter(id__in=ids).delete()
+    return redirect(_volver_al_menu(request, orden, abrir_carrito=True))
 
 
 @login_required
@@ -180,10 +239,19 @@ def confirmar_orden(request, orden_id):
 @user_passes_test(es_cocina)
 def panel_cocina(request):
     ordenes = Orden.objects.filter(estado="enviada").order_by("enviado_a_cocina")
-    productos_todos = Producto.objects.all().order_by("categoria", "nombre")
+
+    # disponibilidad agrupada por categoria, en el mismo orden que las pestañas del mesero
+    productos = list(Producto.objects.all().order_by("nombre"))
+    grupos = []
+    for valor, nombre in Producto.CATEGORIAS:
+        lista = [p for p in productos if p.categoria == valor]
+        if lista:
+            grupos.append((nombre, lista))
+
     return render(request, "pedidos/panel_cocina.html", {
         "ordenes": ordenes,
-        "productos_todos": productos_todos,
+        "grupos": grupos,
+        "temporizadores": Producto.TEMPORIZADORES,
     })
 
 
@@ -193,7 +261,7 @@ def ordenes_pendientes_json(request):
         "id": o.id,
         "mesa": o.mesa.numero,
         "minutos": o.minutos_en_espera(),
-        "items": [f"{i.cantidad}x {i.producto.nombre}" for i in o.items.all()],
+        "items": [f"{i.cantidad}x {i.descripcion()}" for i in o.items.all()],
     } for o in ordenes]
     return JsonResponse({"ordenes": data})
 
@@ -221,73 +289,249 @@ def toggle_disponibilidad(request, producto_id):
     return redirect("panel_cocina")
 
 
+@login_required
+@user_passes_test(es_cocina)
+@require_POST
+def poner_temporizador(request, producto_id):
+    """Cocina avisa 'faltan X min' para un producto; minutos=0 quita el temporizador."""
+    producto = get_object_or_404(Producto, id=producto_id)
+    try:
+        minutos = int(request.POST.get("minutos", 0))
+    except ValueError:
+        minutos = 0
+    if minutos and minutos not in Producto.TEMPORIZADORES:
+        return JsonResponse({"ok": False, "error": "Tiempo no valido"}, status=400)
+
+    producto.listo_en = timezone.now() + timedelta(minutes=minutos) if minutos else None
+    producto.save()
+    if minutos:
+        registrar(request.user, f"Temporizador '{producto.nombre}': faltan {minutos} min")
+    else:
+        registrar(request.user, f"Quito temporizador de '{producto.nombre}'")
+    return redirect("panel_cocina")
+
+
 def disponibilidad_json(request):
+    """Lo consulta la tablet del mesero cada pocos segundos: disponibilidad + temporizadores."""
     productos = Producto.objects.all()
     data = {p.id: p.esta_disponible() for p in productos}
-    return JsonResponse({"disponibilidad": data})
+    temporizadores = {p.id: p.segundos_restantes() for p in productos if p.segundos_restantes()}
+    return JsonResponse({"disponibilidad": data, "temporizadores": temporizadores})
 
 
 # ---------- ADMIN: REPORTES ----------
 
+MESES = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio",
+         "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"]
+DIAS = ["Lun", "Mar", "Mie", "Jue", "Vie", "Sab", "Dom"]
+
+
+def _fin_de_mes(d):
+    siguiente = (d.replace(day=28) + timedelta(days=4)).replace(day=1)
+    return siguiente - timedelta(days=1)
+
+
 def _rango_fechas(request):
-    """Lee ?rango=dia|semana|mes de la URL y devuelve (desde, hasta, etiqueta)."""
+    """Lee ?rango=dia|semana|mes y ?fecha=YYYY-MM-DD (o YYYY-MM) de la URL.
+
+    Devuelve (rango, desde, hasta, etiqueta, ancla). `ancla` es la fecha elegida (hoy por
+    defecto) y sirve para navegar al periodo anterior/siguiente. Se puede pedir cualquier
+    periodo, pasado o futuro.
+    """
     rango = request.GET.get("rango", "dia")
+    if rango not in ("dia", "semana", "mes"):
+        rango = "dia"
     hoy = timezone.localdate()
 
-    if rango == "semana":
-        desde = hoy - timedelta(days=hoy.weekday())
-        etiqueta = f"Semana del {desde.strftime('%d/%m')}"
-    elif rango == "mes":
-        desde = hoy.replace(day=1)
-        etiqueta = f"{hoy.strftime('%B %Y')}"
-    else:
-        rango = "dia"
-        desde = hoy
-        etiqueta = f"Hoy ({hoy.strftime('%d/%m/%Y')})"
+    texto = request.GET.get("fecha", "").strip()
+    if len(texto) == 7:           # <input type="month"> manda YYYY-MM
+        texto += "-01"
+    try:
+        ancla = date.fromisoformat(texto)
+    except ValueError:
+        ancla = hoy
 
-    return rango, desde, hoy, etiqueta
+    if rango == "semana":
+        desde = ancla - timedelta(days=ancla.weekday())
+        fin = desde + timedelta(days=6)
+        etiqueta = f"Semana del {desde:%d/%m} al {fin:%d/%m/%Y}"
+    elif rango == "mes":
+        desde = ancla.replace(day=1)
+        fin = _fin_de_mes(desde)
+        etiqueta = f"{MESES[desde.month - 1]} {desde.year}"
+    else:
+        desde = fin = ancla
+        etiqueta = f"Hoy ({ancla:%d/%m/%Y})" if ancla == hoy else f"{DIAS[ancla.weekday()]} {ancla:%d/%m/%Y}"
+
+    # el periodo en curso se corta en hoy (no hay ventas del futuro); uno pasado o futuro va completo
+    hasta = min(fin, hoy) if desde <= hoy <= fin else fin
+    return rango, desde, hasta, etiqueta, ancla
+
+
+def _navegacion(rango, desde, ancla):
+    """Fechas ancla del periodo anterior y siguiente, para las flechas del dashboard."""
+    if rango == "semana":
+        return desde - timedelta(days=7), desde + timedelta(days=7)
+    if rango == "mes":
+        return _fin_de_mes(desde - timedelta(days=1)).replace(day=1), (_fin_de_mes(desde) + timedelta(days=1))
+    return ancla - timedelta(days=1), ancla + timedelta(days=1)
+
+
+def _ordenes_periodo(desde, hasta):
+    return Orden.objects.filter(
+        creado__date__gte=desde,
+        creado__date__lte=hasta,
+        estado__in=["entregada", "cerrada"],
+    ).select_related("mesa").prefetch_related("items__producto", "items__acompanamiento")
+
+
+def _resumen(ordenes):
+    """Totales de un conjunto de ordenes (el subtotal incluye el cambio de acompañamiento)."""
+    n_ordenes = 0
+    ingresos = 0
+    items = 0
+    for o in ordenes:
+        n_ordenes += 1
+        for it in o.items.all():
+            ingresos += it.subtotal()
+            items += it.cantidad
+    ticket = (ingresos / n_ordenes) if n_ordenes else 0
+    return {"ordenes": n_ordenes, "ingresos": float(ingresos), "ticket": float(ticket), "items": items}
+
+
+def _delta(actual, anterior):
+    """Variacion % vs el periodo anterior (None si no hay base para comparar)."""
+    if not anterior:
+        return None
+    return round((actual - anterior) / anterior * 100)
 
 
 @login_required
 @user_passes_test(es_admin)
 def reportes(request):
-    rango, desde, hasta, etiqueta = _rango_fechas(request)
+    rango, desde, hasta, etiqueta, ancla = _rango_fechas(request)
+    hoy = timezone.localdate()
+    ordenes = list(_ordenes_periodo(desde, hasta))
+    actual = _resumen(ordenes)
 
-    ordenes = Orden.objects.filter(
-        creado__date__gte=desde,
-        creado__date__lte=hasta,
-        estado__in=["entregada", "cerrada"],
-    )
+    # periodo anterior del mismo largo, para los deltas de los indicadores
+    dias = (hasta - desde).days + 1
+    anterior = _resumen(_ordenes_periodo(desde - timedelta(days=dias), desde - timedelta(days=1)))
 
-    total_ordenes = ordenes.count()
-    ingreso_total = sum(o.total() for o in ordenes)
-    ticket_promedio = (ingreso_total / total_ordenes) if total_ordenes else 0
+    # ---- serie de ventas: por hora (dia) o por dia (semana / mes) ----
+    if rango == "dia":
+        horas = [timezone.localtime(o.creado).hour for o in ordenes]
+        h_ini, h_fin = min([10] + horas), max([21] + horas)
+        cubetas = {h: {"etiqueta": f"{h:02d}h", "titulo": f"{h:02d}:00 a {h:02d}:59", "valor": 0.0, "ordenes": 0, "destacar": False}
+                   for h in range(h_ini, h_fin + 1)}
+        for o in ordenes:
+            c = cubetas[timezone.localtime(o.creado).hour]
+            c["valor"] += float(o.total()); c["ordenes"] += 1
+        serie = list(cubetas.values())
+        titulo_serie = "Ventas por hora"
+    else:
+        cubetas = {}
+        d = desde
+        while d <= (desde + timedelta(days=6) if rango == "semana" else hasta):
+            etiq = f"{DIAS[d.weekday()]} {d.day}" if rango == "semana" else str(d.day)
+            titulo = f"{DIAS[d.weekday()]} {d.day} {MESES[d.month - 1].lower()[:3]}" + (" (hoy)" if d == hoy else "")
+            cubetas[d] = {"etiqueta": etiq, "titulo": titulo, "valor": 0.0, "ordenes": 0, "destacar": d == hoy}
+            d += timedelta(days=1)
+        for o in ordenes:
+            c = cubetas.get(timezone.localtime(o.creado).date())
+            if c:
+                c["valor"] += float(o.total()); c["ordenes"] += 1
+        serie = list(cubetas.values())
+        titulo_serie = "Ventas por dia"
 
-    productos_vendidos = (
-        DetalleOrden.objects.filter(orden__in=ordenes)
-        .values("producto__nombre")
-        .annotate(cantidad_total=Sum("cantidad"))
-        .order_by("-cantidad_total")[:10]
-    )
+    # ---- que se vendio: unidades por producto, agrupado por categoria ----
+    # los acompañamientos usados como cambio de plato se cuentan aparte (cocina los prepara igual)
+    por_producto = {}
+    for o in ordenes:
+        for it in o.items.all():
+            p = it.producto
+            pp = por_producto.setdefault(p.id, {"nombre": p.nombre, "categoria": p.categoria, "cantidad": 0, "ingresos": 0.0})
+            pp["cantidad"] += it.cantidad
+            pp["ingresos"] += float(it.subtotal())
+            if it.acompanamiento:
+                a = it.acompanamiento
+                pa = por_producto.setdefault(f"cambio-{a.id}", {"nombre": f"{a.nombre} (cambio en plato)", "categoria": a.categoria, "cantidad": 0, "ingresos": 0.0})
+                pa["cantidad"] += it.cantidad
+                pa["ingresos"] += float(a.precio_cambio or 0) * it.cantidad
+    top_productos = sorted(por_producto.values(), key=lambda x: -x["cantidad"])[:8]
 
-    registros = RegistroAccion.objects.all()[:30]
+    desglose = []
+    for valor, nombre in Producto.CATEGORIAS:
+        filas = sorted([x for x in por_producto.values() if x["categoria"] == valor], key=lambda x: -x["cantidad"])
+        if filas:
+            desglose.append({
+                "nombre": nombre,
+                "filas": filas,
+                "cantidad": sum(f["cantidad"] for f in filas),
+                "ingresos": sum(f["ingresos"] for f in filas),
+            })
 
+    # ---- inventario de bebidas y gaseosas (el admin lo edita desde el dashboard) ----
+    vendidas = {k: v["cantidad"] for k, v in por_producto.items() if isinstance(k, int)}
+    inventario = []
+    for p in Producto.objects.filter(categoria__in=["bebidas", "gaseosas"]).order_by("categoria", "nombre"):
+        inventario.append({"p": p, "vendidas": vendidas.get(p.id, 0)})
+
+    # ---- todas las ordenes del periodo ----
+    todas = sorted(ordenes, key=lambda o: o.creado, reverse=True)
+
+    anterior_ancla, siguiente_ancla = _navegacion(rango, desde, ancla)
     contexto = {
         "rango": rango,
         "etiqueta": etiqueta,
-        "total_ordenes": total_ordenes,
-        "ingreso_total": ingreso_total,
-        "ticket_promedio": ticket_promedio,
-        "productos_vendidos": productos_vendidos,
-        "registros": registros,
+        "ancla": ancla,
+        "es_hoy": ancla == hoy,
+        "nav_anterior": anterior_ancla,
+        "nav_siguiente": siguiente_ancla,
+        "kpi": actual,
+        "deltas": {
+            "ordenes": _delta(actual["ordenes"], anterior["ordenes"]),
+            "ingresos": _delta(actual["ingresos"], anterior["ingresos"]),
+            "ticket": _delta(actual["ticket"], anterior["ticket"]),
+            "items": _delta(actual["items"], anterior["items"]),
+        },
+        "titulo_serie": titulo_serie,
+        "datos": {"serie": serie, "top": top_productos},
+        "desglose": desglose,
+        "inventario": inventario,
+        "todas": todas,
     }
     return render(request, "pedidos/reportes.html", contexto)
 
 
 @login_required
 @user_passes_test(es_admin)
+@require_POST
+def actualizar_stock(request):
+    """Guarda el inventario de bebidas/gaseosas editado en el dashboard."""
+    cambios = []
+    for p in Producto.objects.filter(categoria__in=["bebidas", "gaseosas"]):
+        controla = request.POST.get(f"controla_{p.id}") == "1"
+        try:
+            stock = max(0, int(request.POST.get(f"stock_{p.id}", "") or 0))
+        except ValueError:
+            stock = p.stock or 0
+        if controla != p.controla_stock or (controla and stock != (p.stock or 0)):
+            p.controla_stock = controla
+            p.stock = stock if controla else None
+            p.save()
+            cambios.append(f"{p.nombre}: {stock if controla else 'sin control'}")
+    if cambios:
+        registrar(request.user, "Actualizo inventario - " + ", ".join(cambios))
+
+    volver = reverse("reportes") + "?" + request.POST.get("volver", "rango=dia") + "&guardado=1"
+    return redirect(volver)
+
+
+@login_required
+@user_passes_test(es_admin)
 def exportar_excel(request):
-    rango, desde, hasta, etiqueta = _rango_fechas(request)
+    rango, desde, hasta, etiqueta, _ = _rango_fechas(request)
 
     ordenes = Orden.objects.filter(
         creado__date__gte=desde,
@@ -306,27 +550,26 @@ def exportar_excel(request):
                 orden.id,
                 orden.mesa.numero,
                 orden.creado.strftime("%d/%m/%Y %H:%M"),
-                item.producto.nombre,
+                item.descripcion(),
                 item.cantidad,
                 float(item.subtotal()),
             ])
 
     ws2 = wb.create_sheet("Resumen por producto")
     ws2.append(["Producto", "Cantidad vendida", "Total"])
-    resumen = (
-        DetalleOrden.objects.filter(orden__in=ordenes)
-        .values("producto__nombre")
-        .annotate(cantidad=Sum("cantidad"))
-    )
-    for r in resumen:
-        producto = Producto.objects.filter(nombre=r["producto__nombre"]).first()
-        precio = float(producto.precio) if producto else 0
-        ws2.append([r["producto__nombre"], r["cantidad"], r["cantidad"] * precio])
+    # se suma el subtotal real de cada linea (incluye el +$ del cambio de acompañamiento)
+    resumen = {}
+    for item in DetalleOrden.objects.filter(orden__in=ordenes).select_related("producto", "acompanamiento"):
+        nombre = item.producto.nombre
+        cant, total = resumen.get(nombre, (0, 0.0))
+        resumen[nombre] = (cant + item.cantidad, total + float(item.subtotal()))
+    for nombre, (cant, total) in sorted(resumen.items()):
+        ws2.append([nombre, cant, round(total, 2)])
 
     response = HttpResponse(
         content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
-    nombre_archivo = f"ventas_{rango}_{hasta.strftime('%Y%m%d')}.xlsx"
+    nombre_archivo = f"ventas_{rango}_{desde:%Y%m%d}_{hasta:%Y%m%d}.xlsx"
     response["Content-Disposition"] = f"attachment; filename={nombre_archivo}"
     wb.save(response)
     return response
