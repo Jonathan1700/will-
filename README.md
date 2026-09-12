@@ -6,7 +6,6 @@ y el dueño/admin controla todo desde reportes. Fase 1 completa (sin SRI ni corr
 ## Como correrlo (primera vez)
 
 ```bash
-cd restaurante
 python -m venv venv
 venv\Scripts\activate          # Windows
 # source venv/bin/activate     # Mac/Linux

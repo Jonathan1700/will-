@@ -8,6 +8,8 @@ from django.contrib.auth.decorators import login_required, user_passes_test
 from django.db.models import Sum
 from datetime import timedelta, date
 import openpyxl
+from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+from openpyxl.utils import get_column_letter
 
 from .models import Mesa, Producto, Orden, DetalleOrden, RegistroAccion
 
@@ -539,24 +541,61 @@ def exportar_excel(request):
         estado__in=["entregada", "cerrada"],
     ).order_by("creado")
 
+    azul = "1F4E78"
+    gris_claro = "F2F2F2"
+    borde_fino = Side(style="thin", color="BFBFBF")
+    borde = Border(left=borde_fino, right=borde_fino, top=borde_fino, bottom=borde_fino)
+    fuente_encabezado = Font(color="FFFFFF", bold=True, size=11)
+    relleno_encabezado = PatternFill("solid", fgColor=azul)
+
+    def estilizar_encabezado(ws, columnas):
+        ws.append(columnas)
+        for celda in ws[1]:
+            celda.font = fuente_encabezado
+            celda.fill = relleno_encabezado
+            celda.alignment = Alignment(horizontal="center", vertical="center")
+            celda.border = borde
+        ws.freeze_panes = "A2"
+        ws.auto_filter.ref = f"A1:{get_column_letter(len(columnas))}1"
+
+    def ajustar_anchos(ws, anchos):
+        for i, ancho in enumerate(anchos, start=1):
+            ws.column_dimensions[get_column_letter(i)].width = ancho
+
+    def bordear_filas(ws, num_columnas):
+        for fila in ws.iter_rows(min_row=2, max_row=ws.max_row, max_col=num_columnas):
+            for celda in fila:
+                celda.border = borde
+            if fila[0].row % 2 == 0:
+                for celda in fila:
+                    celda.fill = PatternFill("solid", fgColor=gris_claro)
+
     wb = openpyxl.Workbook()
     ws = wb.active
     ws.title = "Ventas"
-    ws.append(["Orden", "Mesa", "Fecha", "Producto", "Cantidad", "Subtotal"])
+    estilizar_encabezado(ws, ["Orden", "Fecha", "Producto", "Cantidad", "Subtotal"])
 
     for orden in ordenes:
         for item in orden.items.all():
             ws.append([
                 orden.id,
-                orden.mesa.numero,
                 orden.creado.strftime("%d/%m/%Y %H:%M"),
                 item.descripcion(),
                 item.cantidad,
                 float(item.subtotal()),
             ])
 
+    for fila in ws.iter_rows(min_row=2, max_row=ws.max_row, min_col=4, max_col=4):
+        for celda in fila:
+            celda.alignment = Alignment(horizontal="center")
+    for fila in ws.iter_rows(min_row=2, max_row=ws.max_row, min_col=5, max_col=5):
+        for celda in fila:
+            celda.number_format = '"$"#,##0.00'
+    bordear_filas(ws, 5)
+    ajustar_anchos(ws, [10, 18, 40, 12, 14])
+
     ws2 = wb.create_sheet("Resumen por producto")
-    ws2.append(["Producto", "Cantidad vendida", "Total"])
+    estilizar_encabezado(ws2, ["Producto", "Cantidad vendida", "Total"])
     # se suma el subtotal real de cada linea (incluye el +$ del cambio de acompañamiento)
     resumen = {}
     for item in DetalleOrden.objects.filter(orden__in=ordenes).select_related("producto", "acompanamiento"):
@@ -565,6 +604,15 @@ def exportar_excel(request):
         resumen[nombre] = (cant + item.cantidad, total + float(item.subtotal()))
     for nombre, (cant, total) in sorted(resumen.items()):
         ws2.append([nombre, cant, round(total, 2)])
+
+    for fila in ws2.iter_rows(min_row=2, max_row=ws2.max_row, min_col=2, max_col=2):
+        for celda in fila:
+            celda.alignment = Alignment(horizontal="center")
+    for fila in ws2.iter_rows(min_row=2, max_row=ws2.max_row, min_col=3, max_col=3):
+        for celda in fila:
+            celda.number_format = '"$"#,##0.00'
+    bordear_filas(ws2, 3)
+    ajustar_anchos(ws2, [40, 18, 16])
 
     response = HttpResponse(
         content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
