@@ -2,12 +2,12 @@ from django.urls import path
 from . import views
 
 urlpatterns = [
-    # login
+    # login jej
     path("login/", views.login_view, name="login"),
     path("logout/", views.logout_view, name="logout"),
     path("post-login/", views.post_login, name="post_login"),
 
-    # mesero
+    # mesero 
     path("", views.elegir_mesa, name="elegir_mesa"),
     path("mesa/<int:mesa_id>/", views.menu_mesa, name="menu_mesa"),
     path("orden/<int:orden_id>/agregar/<int:producto_id>/", views.agregar_item, name="agregar_item"),
@@ -18,7 +18,7 @@ urlpatterns = [
     path("api/listas/", views.ordenes_listas_json, name="ordenes_listas_json"),
     path("orden/<int:orden_id>/entregar/", views.entregar_a_cliente, name="entregar_a_cliente"),
 
-    # cocina
+    # cocina xd
     path("cocina/", views.panel_cocina, name="panel_cocina"),
     path("cocina/api/pendientes/", views.ordenes_pendientes_json, name="ordenes_pendientes_json"),
     path("cocina/orden/<int:orden_id>/entregada/", views.marcar_entregada, name="marcar_entregada"),
