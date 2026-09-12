@@ -10,25 +10,38 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/6.1/ref/settings/
 """
 
+import os
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+# Si hay DATABASE_URL, asumimos que corremos en Vercel (produccion).
+DATABASE_URL = os.environ.get('DATABASE_URL')
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/6.1/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-kvv9j1#q(2(i5c&pniecl2@5*s4(ts@p+kbgs^sv7n+6-hgq6$'
+# En Vercel: definir SECRET_KEY como variable de entorno (obligatorio en produccion).
+SECRET_KEY = os.environ.get(
+    'SECRET_KEY',
+    'django-insecure-kvv9j1#q(2(i5c&pniecl2@5*s4(ts@p+kbgs^sv7n+6-hgq6$',
+)
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+# Local (sin DATABASE_URL): DEBUG=True por defecto. En Vercel: False por defecto
+# (se puede forzar con la variable de entorno DEBUG=True/False).
+DEBUG = os.environ.get('DEBUG', 'False' if DATABASE_URL else 'True') == 'True'
 
-# En produccion (Railway) reemplazar por el dominio real.
 # Para probar en local: correr con `python manage.py runserver 0.0.0.0:8000`
 # y abrir esa IP desde las tablets conectadas a la misma WiFi.
 ALLOWED_HOSTS = ['*']
+
+# Necesario para que Django confie en el dominio de Vercel al validar CSRF (POST de login,
+# pedidos, etc.) ya que se sirve por HTTPS detras de un proxy.
+CSRF_TRUSTED_ORIGINS = ['https://*.vercel.app']
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 
 # Application definition
@@ -77,12 +90,22 @@ WSGI_APPLICATION = 'restaurante.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/6.1/ref/settings/#databases
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+if DATABASE_URL:
+    import dj_database_url
+
+    DATABASES = {
+        'default': dj_database_url.parse(
+            DATABASE_URL, conn_max_age=600, ssl_require=True
+        )
     }
-}
+else:
+    # Local (sin DATABASE_URL): sqlite, como siempre.
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+        }
+    }
 
 
 # Password validation
@@ -120,8 +143,12 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/6.1/howto/static-files/
 
 STATIC_URL = 'static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 # Fotos de productos subidas desde /admin/
+# Nota: en Vercel el filesystem es de solo lectura salvo /tmp, asi que las fotos
+# que ya estan en el repo se sirven bien, pero subir una foto nueva desde /admin/
+# en produccion NO persiste (se pierde en el siguiente deploy o cold start).
 MEDIA_URL = 'media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
