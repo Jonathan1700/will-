@@ -1793,16 +1793,31 @@ table.ticket .t-num {
 .gasto-form {
     display: flex;
     flex-wrap: wrap;
-    gap: 10px;
-    align-items: center;
+    gap: 12px;
+    align-items: flex-end;
     margin: 4px 0 18px;
     padding-bottom: 16px;
     border-bottom: 1px solid var(--line);
 }
 
-.gasto-form input[type="date"],
-.gasto-form input[type="number"],
-.gasto-form select {
+.campo-gasto {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.campo-gasto-label {
+    font-size: 11.5px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .03em;
+    color: var(--ink-soft);
+}
+
+.campo-gasto input[type="date"],
+.campo-gasto input[type="text"],
+.campo-gasto select,
+.campo-monto {
     height: 42px;
     border: 1px solid var(--line);
     border-radius: 10px;
@@ -1812,8 +1827,27 @@ table.ticket .t-num {
     background: #FFFFFF;
 }
 
-.gasto-form input[type="text"] { flex: 1 1 220px; }
-.gasto-form input[type="number"] { width: 110px; }
+.campo-gasto-ancho { flex: 1 1 220px; }
+
+.campo-monto {
+    display: flex;
+    align-items: center;
+    width: 130px;
+}
+
+.campo-monto-signo { color: var(--ink-soft); font-weight: 700; margin-right: 4px; }
+
+.campo-monto input[type="number"] {
+    border: none;
+    height: 100%;
+    padding: 0;
+    width: 100%;
+    font-family: inherit;
+    font-size: 13px;
+    background: transparent;
+}
+
+.campo-monto input[type="number"]:focus { outline: none; }
 
 .btn-eliminar-fila {
     width: 30px;

@@ -382,7 +382,7 @@ def toggle_disponibilidad(request, producto_id):
     producto.save()
     estado_txt = "disponible" if producto.disponible else "agotado"
     registrar(request.user, f"Marco '{producto.nombre}' como {estado_txt}")
-    return redirect("panel_cocina")
+    return JsonResponse({"ok": True, "disponible": producto.disponible})
 
 
 @login_required
@@ -404,7 +404,7 @@ def poner_temporizador(request, producto_id):
         registrar(request.user, f"Temporizador '{producto.nombre}': faltan {minutos} min")
     else:
         registrar(request.user, f"Quito temporizador de '{producto.nombre}'")
-    return redirect("panel_cocina")
+    return JsonResponse({"ok": True, "segundos": producto.segundos_restantes()})
 
 
 @login_required
@@ -416,7 +416,7 @@ def toggle_menestra(request, tipo_id):
     tipo.save()
     estado_txt = "disponible" if tipo.disponible else "agotada"
     registrar(request.user, f"Marco menestra de '{tipo.nombre}' como {estado_txt}")
-    return redirect("panel_cocina")
+    return JsonResponse({"ok": True, "disponible": tipo.disponible})
 
 
 @login_required
