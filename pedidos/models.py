@@ -173,10 +173,11 @@ class Cuenta(models.Model):
         return f"Mesa {self.mesa.numero} - Cuenta {self.numero}"
 
     def items(self):
-        """Items de esta cuenta en toda la mesa (pueden venir de varias rondas/ordenes)."""
+        """Items de esta cuenta en la mesa (pueden venir de varias rondas/ordenes, pero
+        solo las que siguen en curso: una orden ya 'cerrada' es de una visita anterior)."""
         return DetalleOrden.objects.filter(
             orden__mesa=self.mesa, orden__es_venta_directa=False, cuenta=self.numero,
-        ).select_related("producto", "acompanamiento")
+        ).exclude(orden__estado="cerrada").select_related("producto", "acompanamiento")
 
     def total(self):
         return sum(item.subtotal() for item in self.items())
