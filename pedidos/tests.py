@@ -4,7 +4,7 @@ from django.contrib.auth.models import User, Group
 from django.test import TestCase
 from django.urls import reverse
 
-from .models import DetalleOrden, Mesa, Orden, PiezaPollo, Producto, VarianteProducto
+from .models import Cuenta, DetalleOrden, Mesa, Orden, PiezaPollo, Producto, VarianteProducto
 
 
 class FlujoPedidoCompletoTest(TestCase):
@@ -331,3 +331,93 @@ class ParaLlevarTest(TestCase):
         orden.refresh_from_db()
         self.assertTrue(orden.para_llevar)
         self.assertEqual(orden.total(), Decimal("1.50"))
+
+
+class CuentasDeMesaTest(TestCase):
+    """Una mesa se puede dividir en varias cuentas (Cuenta 1, Cuenta 2...), cada una
+    con su propio carrito y total. Cocina no debe enterarse de esto."""
+
+    def setUp(self):
+        Group.objects.get_or_create(name="Mesero")
+        Group.objects.get_or_create(name="Cocina")
+        self.mesero = User.objects.create_user("mesero", password="1234")
+        self.mesero.groups.add(Group.objects.get(name="Mesero"))
+        self.cocina = User.objects.create_user("cocina", password="1234")
+        self.cocina.groups.add(Group.objects.get(name="Cocina"))
+
+        self.mesa = Mesa.objects.create(numero=5)
+        self.hamburguesa = Producto.objects.create(
+            nombre="Hamburguesa", precio=Decimal("8.00"), categoria="combos"
+        )
+        self.pizza = Producto.objects.create(
+            nombre="Pizza", precio=Decimal("12.00"), categoria="combos"
+        )
+
+    def test_mesa_nueva_arranca_con_una_sola_cuenta_automatica(self):
+        self.client.login(username="mesero", password="1234")
+        self.client.get(reverse("menu_mesa", args=[self.mesa.id]))
+
+        self.assertEqual(Cuenta.objects.filter(mesa=self.mesa).count(), 1)
+        self.assertEqual(Cuenta.objects.get(mesa=self.mesa).numero, 1)
+
+    def test_agregar_cuenta_numera_1_2_3_y_no_mezcla_los_carritos(self):
+        self.client.login(username="mesero", password="1234")
+
+        respuesta = self.client.post(reverse("agregar_cuenta", args=[self.mesa.id]))
+        cuenta1 = Cuenta.objects.get(mesa=self.mesa)
+        self.assertEqual(cuenta1.numero, 1)
+        self.assertRedirects(respuesta, f"{reverse('menu_mesa', args=[self.mesa.id])}?cuenta={cuenta1.id}")
+
+        respuesta = self.client.post(reverse("agregar_cuenta", args=[self.mesa.id]))
+        cuenta2 = Cuenta.objects.exclude(id=cuenta1.id).get(mesa=self.mesa)
+        self.assertEqual(cuenta2.numero, 2)
+        self.assertRedirects(respuesta, f"{reverse('menu_mesa', args=[self.mesa.id])}?cuenta={cuenta2.id}")
+
+        orden1 = Orden.objects.get(cuenta=cuenta1, estado="abierta")
+        orden2 = Orden.objects.get(cuenta=cuenta2, estado="abierta")
+        self.client.post(reverse("agregar_item", args=[orden1.id, self.hamburguesa.id]))
+        self.client.post(reverse("agregar_item", args=[orden2.id, self.pizza.id]))
+
+        orden1.refresh_from_db()
+        orden2.refresh_from_db()
+        self.assertEqual(orden1.items.get().producto, self.hamburguesa)
+        self.assertEqual(orden2.items.get().producto, self.pizza)
+        self.assertEqual(orden1.total(), Decimal("8.00"))
+        self.assertEqual(orden2.total(), Decimal("12.00"))
+
+    def test_cuenta_se_cierra_sola_cuando_su_ultima_orden_se_entrega(self):
+        self.client.login(username="mesero", password="1234")
+        self.client.get(reverse("menu_mesa", args=[self.mesa.id]))
+        cuenta = Cuenta.objects.get(mesa=self.mesa)
+        orden = Orden.objects.get(cuenta=cuenta, estado="abierta")
+
+        self.client.post(reverse("agregar_item", args=[orden.id, self.hamburguesa.id]))
+        self.client.post(reverse("confirmar_orden", args=[orden.id]))
+        self.client.logout()
+
+        self.client.login(username="cocina", password="1234")
+        self.client.post(reverse("marcar_entregada", args=[orden.id]))
+        self.client.logout()
+
+        self.client.login(username="mesero", password="1234")
+        self.assertTrue(cuenta.esta_abierta())
+        self.client.post(reverse("entregar_a_cliente", args=[orden.id]))
+
+        self.assertFalse(cuenta.esta_abierta())
+
+        # la mesa vuelve a estar libre: la siguiente cuenta sigue la numeracion (no reusa el 1)
+        respuesta = self.client.post(reverse("agregar_cuenta", args=[self.mesa.id]))
+        nueva = Cuenta.objects.exclude(id=cuenta.id).get(mesa=self.mesa)
+        self.assertEqual(nueva.numero, 2)
+
+    def test_panel_de_cocina_no_muestra_cuentas(self):
+        self.client.login(username="mesero", password="1234")
+        self.client.get(reverse("menu_mesa", args=[self.mesa.id]))
+        orden = Orden.objects.get(mesa=self.mesa, estado="abierta", es_venta_directa=False)
+        self.client.post(reverse("agregar_item", args=[orden.id, self.hamburguesa.id]))
+        self.client.post(reverse("confirmar_orden", args=[orden.id]))
+        self.client.logout()
+
+        self.client.login(username="cocina", password="1234")
+        respuesta = self.client.get(reverse("panel_cocina"))
+        self.assertNotContains(respuesta, "Cuenta 1")

@@ -12,7 +12,31 @@ class Mesa(models.Model):
         return f"Mesa {self.numero}"
 
     def tiene_orden_abierta(self):
-        return self.orden_set.filter(estado="abierta", es_venta_directa=False).exists()
+        return any(cuenta.esta_abierta() for cuenta in self.cuentas.all())
+
+
+class Cuenta(models.Model):
+    """Una de las cuentas en que se puede dividir una mesa (cada cliente/grupo
+    pide y paga por separado). El mesero las crea desde la pantalla de la mesa
+    con el boton "Agregar cuenta": la primera es "Cuenta 1", la siguiente
+    "Cuenta 2", y asi sucesivamente (el numero nunca se repite en esa mesa)."""
+    mesa = models.ForeignKey(Mesa, related_name="cuentas", on_delete=models.CASCADE)
+    numero = models.IntegerField()
+    creado = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        ordering = ["numero"]
+
+    def __str__(self):
+        return f"Mesa {self.mesa.numero} - Cuenta {self.numero}"
+
+    def esta_abierta(self):
+        """Sigue activa mientras tenga alguna orden que no este cerrada
+        (pagada/entregada del todo)."""
+        return self.ordenes.exclude(estado="cerrada").exists()
+
+    def total(self):
+        return sum((orden.total() for orden in self.ordenes.all()), Decimal("0"))
 
 
 class Producto(models.Model):
@@ -174,6 +198,10 @@ class Orden(models.Model):
     CATEGORIAS_CON_ENVASE = ("pollo", "combos")
 
     mesa = models.ForeignKey(Mesa, on_delete=models.CASCADE)
+    # a que cuenta de la mesa pertenece (venta directa no usa cuenta: es de la mesa entera)
+    cuenta = models.ForeignKey(
+        Cuenta, related_name="ordenes", null=True, blank=True, on_delete=models.SET_NULL
+    )
     estado = models.CharField(max_length=20, choices=ESTADOS, default="abierta")
     creado = models.DateTimeField(default=timezone.now)
     enviado_a_cocina = models.DateTimeField(null=True, blank=True)

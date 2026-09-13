@@ -1,0 +1,33 @@
+{% extends "pedidos/base.html" %}
+{% block titulo %}Mesa {{ mesa.numero }} - Cuentas{% endblock %}
+{% block contenido %}
+<header class="top">
+    <a href="{% url 'elegir_mesa' %}" class="titulo">Brasas</a>
+    <span class="mesa">Mesa {{ mesa.numero }}</span>
+    <span class="top-acciones">
+        <button type="button" class="top-fullscreen" id="btn-fullscreen" aria-label="Pantalla completa">⛶</button>
+        <a href="{% url 'logout' %}" class="top-salir">Salir</a>
+    </span>
+</header>
+<div class="app">
+    <h2 class="seccion-titulo">
+        Mesa {{ mesa.numero }} · {{ cuentas|length }} cuenta{{ cuentas|length|pluralize }} abierta{{ cuentas|length|pluralize }}
+    </h2>
+
+    <div class="cuentas-grid">
+        {% for cuenta in cuentas %}
+        <a href="{% url 'menu_mesa' mesa.id %}?cuenta={{ cuenta.id }}" class="cuenta-btn">
+            <span class="cuenta-nombre">Cuenta {{ cuenta.numero }}</span>
+            <span class="cuenta-total">${{ cuenta.total }}</span>
+        </a>
+        {% empty %}
+        <p class="cuenta-vacia">Esta mesa todavia no tiene ninguna cuenta abierta.</p>
+        {% endfor %}
+    </div>
+
+    <form method="post" action="{% url 'agregar_cuenta' mesa.id %}">
+        {% csrf_token %}
+        <button class="btn-agregar-cuenta">+ Agregar cuenta</button>
+    </form>
+</div>
+{% endblock %}

@@ -9,6 +9,8 @@ urlpatterns = [
 
     # mesero 
     path("", views.elegir_mesa, name="elegir_mesa"),
+    path("mesa/<int:mesa_id>/cuentas/", views.seleccionar_cuenta, name="seleccionar_cuenta"),
+    path("mesa/<int:mesa_id>/cuentas/agregar/", views.agregar_cuenta, name="agregar_cuenta"),
     path("mesa/<int:mesa_id>/", views.menu_mesa, name="menu_mesa"),
     path("orden/<int:orden_id>/agregar/<int:producto_id>/", views.agregar_item, name="agregar_item"),
     path("orden/<int:orden_id>/item/<int:item_id>/cantidad/", views.cambiar_cantidad, name="cambiar_cantidad"),

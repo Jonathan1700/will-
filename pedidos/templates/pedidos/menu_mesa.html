@@ -4,7 +4,7 @@
 {% block contenido %}
 <header class="top">
     <a href="{% url 'elegir_mesa' %}" class="titulo">Brasas</a>
-    <span class="mesa">Mesa {{ mesa.numero }}</span>
+    <a href="{% url 'seleccionar_cuenta' mesa.id %}" class="mesa">Mesa {{ mesa.numero }} · Cuenta {{ cuenta.numero }}</a>
     <span class="top-acciones">
         <button type="button" class="top-fullscreen" id="btn-fullscreen" aria-label="Pantalla completa">⛶</button>
         <a href="{% url 'logout' %}" class="top-salir">Salir</a>
@@ -74,6 +74,7 @@
                             <form method="post" action="{% url 'agregar_item_directo' mesa.id producto.id %}">
                                 {% csrf_token %}
                                 <input type="hidden" name="categoria" value="{{ categoria_activa }}">
+                                <input type="hidden" name="cuenta" value="{{ cuenta.id }}">
                                 <button type="submit" class="btn-directo" {% if not disponible %}disabled{% endif %}
                                         title="Venta directa: se cobra al instante, no pasa por cocina"></button>
                             </form>
@@ -120,7 +121,7 @@
         <div class="pedido-head">
             <div>
                 <p class="pedido-titulo">Tu pedido</p>
-                <p class="pedido-sub">Mesa {{ mesa.numero }} · {{ orden.items.count }} item{{ orden.items.count|pluralize }}</p>
+                <p class="pedido-sub">Mesa {{ mesa.numero }} · Cuenta {{ cuenta.numero }} · {{ orden.items.count }} item{{ orden.items.count|pluralize }}</p>
             </div>
             <button type="button" class="pedido-cerrar" id="pedido-cerrar" aria-label="Cerrar">✕</button>
         </div>
@@ -226,6 +227,7 @@
             <form method="post" action="{% url 'cambiar_cantidad' orden_directa.id item.id %}" id="form-directo-cant-{{ item.id }}">
                 {% csrf_token %}
                 <input type="hidden" name="categoria" value="{{ categoria_activa }}">
+                <input type="hidden" name="cuenta" value="{{ cuenta.id }}">
             </form>
             {% empty %}
             <div class="pedido-vacio">
@@ -243,6 +245,7 @@
             <form method="post" action="{% url 'confirmar_venta_directa' orden_directa.id %}">
                 {% csrf_token %}
                 <input type="hidden" name="categoria" value="{{ categoria_activa }}">
+                <input type="hidden" name="cuenta" value="{{ cuenta.id }}">
                 <button class="btn-enviar btn-directo-cobrar" {% if orden_directa.items.count == 0 %}disabled{% endif %}>
                      Cobrar venta directa
                 </button>

@@ -5,7 +5,7 @@ from django.views.decorators.http import require_POST
 from django.utils import timezone
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required, user_passes_test
-from django.db.models import Sum
+from django.db.models import Sum, Max
 from datetime import timedelta, date
 import json
 import openpyxl
@@ -14,7 +14,7 @@ from openpyxl.utils import get_column_letter
 
 from .models import (
     Mesa, Producto, Orden, DetalleOrden, RegistroAccion, PiezaPollo, TipoMenestra, VarianteProducto,
-    Gasto,
+    Gasto, Cuenta,
 )
 
 
@@ -97,6 +97,32 @@ def elegir_mesa(request):
     })
 
 
+def _siguiente_numero_cuenta(mesa):
+    """1, 2, 3... nunca se repite en la mesa aunque cuentas anteriores ya se hayan cerrado."""
+    ultimo = mesa.cuentas.aggregate(Max("numero"))["numero__max"]
+    return (ultimo or 0) + 1
+
+
+@login_required
+@user_passes_test(es_mesero)
+def seleccionar_cuenta(request, mesa_id):
+    """Al elegir una mesa: cuantas cuentas tiene abiertas y boton para agregar una mas
+    (Cuenta 1, Cuenta 2...). Cocina nunca ve esto, solo organiza el trabajo del mesero."""
+    mesa = get_object_or_404(Mesa, id=mesa_id)
+    cuentas = [c for c in mesa.cuentas.all() if c.esta_abierta()]
+    return render(request, "pedidos/seleccionar_cuenta.html", {"mesa": mesa, "cuentas": cuentas})
+
+
+@login_required
+@user_passes_test(es_mesero)
+@require_POST
+def agregar_cuenta(request, mesa_id):
+    """Boton 'Agregar cuenta': crea la siguiente (Cuenta 1, luego Cuenta 2...) y entra directo a ella."""
+    mesa = get_object_or_404(Mesa, id=mesa_id)
+    cuenta = Cuenta.objects.create(mesa=mesa, numero=_siguiente_numero_cuenta(mesa))
+    return redirect(f"{reverse('menu_mesa', args=[mesa.id])}?cuenta={cuenta.id}")
+
+
 def ordenes_listas_json(request):
     """Pedidos que cocina ya marco como listos, para avisar en la tablet del mesero."""
     ordenes = Orden.objects.filter(estado="entregada").order_by("enviado_a_cocina")
@@ -120,7 +146,17 @@ def entregar_a_cliente(request, orden_id):
 @user_passes_test(es_mesero)
 def menu_mesa(request, mesa_id):
     mesa = get_object_or_404(Mesa, id=mesa_id)
-    orden, _ = Orden.objects.get_or_create(mesa=mesa, estado="abierta", es_venta_directa=False)
+
+    cuenta_id = request.GET.get("cuenta")
+    if cuenta_id:
+        cuenta = get_object_or_404(Cuenta, id=cuenta_id, mesa=mesa)
+    else:
+        # sin cuenta indicada: usa la unica que este abierta, o crea la primera
+        cuenta = next((c for c in mesa.cuentas.all() if c.esta_abierta()), None)
+        if cuenta is None:
+            cuenta = Cuenta.objects.create(mesa=mesa, numero=_siguiente_numero_cuenta(mesa))
+
+    orden, _ = Orden.objects.get_or_create(mesa=mesa, cuenta=cuenta, estado="abierta", es_venta_directa=False)
     orden_directa = Orden.objects.filter(mesa=mesa, estado="abierta", es_venta_directa=True).first()
 
     categoria = request.GET.get("categoria", "combos")
@@ -134,6 +170,7 @@ def menu_mesa(request, mesa_id):
 
     contexto = {
         "mesa": mesa,
+        "cuenta": cuenta,
         "orden": orden,
         "orden_directa": orden_directa,
         "productos": productos,
@@ -209,16 +246,24 @@ def agregar_item(request, orden_id, producto_id):
     item.save()
 
     categoria = request.POST.get("categoria", "combos")
-    return redirect(f"{reverse('menu_mesa', args=[orden.mesa.id])}?categoria={categoria}")
+    return redirect(_url_menu_mesa(orden.mesa_id, categoria, orden.cuenta_id))
+
+
+def _url_menu_mesa(mesa_id, categoria, cuenta_id=None, extra=""):
+    """URL del menu de la mesa conservando la pestaña activa y la cuenta que se esta viendo."""
+    url = f"{reverse('menu_mesa', args=[mesa_id])}?categoria={categoria}"
+    if cuenta_id:
+        url += f"&cuenta={cuenta_id}"
+    return url + extra
 
 
 def _volver_al_menu(request, orden, abrir_carrito=False):
-    """URL del menu de la mesa conservando la pestaña activa (y el detalle abierto si se pide)."""
+    """URL del menu de la mesa conservando la pestaña activa (y el detalle abierto si se pide).
+    La venta directa no tiene cuenta propia: usa la que venia marcada en el formulario."""
     categoria = request.POST.get("categoria", "combos")
-    url = f"{reverse('menu_mesa', args=[orden.mesa.id])}?categoria={categoria}"
-    if abrir_carrito:
-        url += "&directo=1" if orden.es_venta_directa else "&carrito=1"
-    return url
+    cuenta_id = orden.cuenta_id or request.POST.get("cuenta")
+    extra = ("&directo=1" if orden.es_venta_directa else "&carrito=1") if abrir_carrito else ""
+    return _url_menu_mesa(orden.mesa_id, categoria, cuenta_id, extra)
 
 
 @login_required
@@ -276,7 +321,8 @@ def confirmar_orden(request, orden_id):
     orden.save()
 
     tipo = "para llevar" if orden.para_llevar else "para servir"
-    registrar(request.user, f"Confirmo orden #{orden.id} ({tipo}) - Mesa {orden.mesa.numero} - ${orden.total()}")
+    cuenta_txt = f" - Cuenta {orden.cuenta.numero}" if orden.cuenta_id else ""
+    registrar(request.user, f"Confirmo orden #{orden.id} ({tipo}) - Mesa {orden.mesa.numero}{cuenta_txt} - ${orden.total()}")
     return redirect("elegir_mesa")
 
 
@@ -306,7 +352,7 @@ def agregar_item_directo(request, mesa_id, producto_id):
     item.save()
 
     categoria = request.POST.get("categoria", "combos")
-    return redirect(f"{reverse('menu_mesa', args=[mesa.id])}?categoria={categoria}&directo=1")
+    return redirect(_url_menu_mesa(mesa.id, categoria, request.POST.get("cuenta"), "&directo=1"))
 
 
 @login_required
@@ -327,7 +373,7 @@ def confirmar_venta_directa(request, orden_id):
 
     registrar(request.user, f"Venta directa #{orden.id} (sin cocina) - Mesa {orden.mesa.numero} - ${orden.total()}")
     categoria = request.POST.get("categoria", "combos")
-    return redirect(f"{reverse('menu_mesa', args=[orden.mesa.id])}?categoria={categoria}")
+    return redirect(_url_menu_mesa(orden.mesa_id, categoria, request.POST.get("cuenta")))
 
 
 # ---------- COCINA ----------

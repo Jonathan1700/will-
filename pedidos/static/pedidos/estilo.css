@@ -85,6 +85,7 @@ header.top .mesa {
     font-size: 13px;
     padding: 6px 14px;
     border-radius: 4px;
+    text-decoration: none;
 }
 
 .app {
@@ -332,6 +333,64 @@ header.top .mesa {
     background: var(--mustard);
     color: var(--navy-dark);
 }
+
+/* ---- cuentas de una mesa (Cuenta 1, Cuenta 2...) ---- */
+
+.cuentas-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 14px;
+    margin-bottom: 20px;
+}
+
+.cuenta-btn {
+    display: block;
+    background: var(--card);
+    border: 2px solid var(--navy);
+    border-radius: 10px;
+    padding: 16px;
+    text-decoration: none;
+    color: var(--navy);
+}
+
+.cuenta-nombre {
+    display: block;
+    font-family: 'Anton', sans-serif;
+    font-size: 16px;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+}
+
+.cuenta-total {
+    display: block;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--ink-soft);
+}
+
+.cuenta-vacia {
+    color: var(--ink-soft);
+    font-size: 13px;
+    margin-bottom: 20px;
+}
+
+.btn-agregar-cuenta {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--mustard);
+    color: var(--navy-dark);
+    border: 2px dashed var(--navy);
+    border-radius: 10px;
+    padding: 14px 22px;
+    font-family: 'Anton', sans-serif;
+    font-size: 14px;
+    letter-spacing: 0.4px;
+    text-transform: uppercase;
+    cursor: pointer;
+}
+
+.btn-agregar-cuenta:active { transform: scale(.985); }
 
 .comanda {
     background: var(--card);

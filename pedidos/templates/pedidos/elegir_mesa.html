@@ -16,7 +16,7 @@
         {% for orden in ordenes_listas %}
         <div class="listo-card">
             <div class="listo-head">
-                <span class="listo-mesa">Mesa {{ orden.mesa.numero }}</span>
+                <span class="listo-mesa">Mesa {{ orden.mesa.numero }}{% if orden.cuenta %} · Cuenta {{ orden.cuenta.numero }}{% endif %}</span>
                 <span class="listo-tag">Listo</span>
             </div>
             <p class="listo-detalle">
@@ -37,7 +37,7 @@
     <h2 class="seccion-titulo">Elige una mesa</h2>
     <div class="mesas-grid">
         {% for mesa in mesas %}
-        <a href="{% url 'menu_mesa' mesa.id %}" class="mesa-btn {% if mesa.tiene_orden_abierta %}ocupada{% endif %}">
+        <a href="{% url 'seleccionar_cuenta' mesa.id %}" class="mesa-btn {% if mesa.tiene_orden_abierta %}ocupada{% endif %}">
             {{ mesa.numero }}
         </a>
         {% empty %}
