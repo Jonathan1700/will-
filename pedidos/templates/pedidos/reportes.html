@@ -44,6 +44,7 @@
             <a href="#vendido" class="menu-item" data-seccion="vendido">Que se vendio</a>
             <a href="#bebidas" class="menu-item" data-seccion="bebidas">Bebidas</a>
             <a href="#ordenes" class="menu-item" data-seccion="ordenes">Ordenes</a>
+            <a href="#gastos" class="menu-item" data-seccion="gastos">Gastos y ganancia</a>
             <a href="/admin/" class="menu-item menu-externo" data-nav="normal">Productos y usuarios</a>
         </nav>
 
@@ -198,7 +199,11 @@
                         {% for o in todas %}
                         <tr>
                             <td class="mono">{{ o.id }}</td>
-                            <td class="mono">Mesa {{ o.mesa.numero }}</td>
+                            <td class="mono">
+                                Mesa {{ o.mesa.numero }}
+                                {% if o.es_venta_directa %}<span class="chip chip-cambio"> directa</span>{% endif %}
+                                {% if o.para_llevar %}<span class="chip chip-cambio"> llevar</span>{% endif %}
+                            </td>
                             <td class="mono">{{ o.creado|date:"d/m H:i" }}</td>
                             <td class="detalle">{% for it in o.items.all %}{{ it.cantidad }}x {{ it.descripcion }}{% if not forloop.last %} · {% endif %}{% endfor %}</td>
                             <td class="num">{% with n=o.items.all %}{{ n|length }}{% endwith %}</td>
@@ -211,6 +216,103 @@
                     {% if todas %}
                     <tfoot>
                         <tr><td colspan="5" class="num"><strong>Total del periodo</strong></td><td class="num"><strong>${{ kpi.ingresos|floatformat:2 }}</strong></td></tr>
+                    </tfoot>
+                    {% endif %}
+                </table>
+            </div>
+        </section>
+                </div>
+            </section>
+
+            <section class="seccion" id="sec-gastos" hidden>
+                <div class="dash-grid">
+        <section class="panel panel-ancho">
+            <header class="panel-head">
+                <h2>Ganancia de {{ mes_actual.etiqueta }} (mes en curso)</h2>
+                <span class="panel-sub">Fijo: siempre el mes completo hasta hoy, sin importar el periodo elegido arriba. Uselo de base para los sueldos.</span>
+            </header>
+            <div class="kpis">
+                <div class="kpi kpi-hero">
+                    <p class="kpi-label">Ingresos del mes</p>
+                    <p class="kpi-valor">${{ mes_actual.ingresos|floatformat:2 }}</p>
+                </div>
+                <div class="kpi">
+                    <p class="kpi-label">Gastos del mes</p>
+                    <p class="kpi-valor">${{ mes_actual.total_gastos|floatformat:2 }}</p>
+                </div>
+                <div class="kpi">
+                    <p class="kpi-label">{% if mes_actual.ganancia < 0 %}Perdida{% else %}Ganancia{% endif %} del mes</p>
+                    <p class="kpi-valor {% if mes_actual.ganancia < 0 %}neg{% endif %}">${{ mes_actual.ganancia|floatformat:2 }}</p>
+                    {% if mes_actual.margen is not None %}<p class="kpi-delta {% if mes_actual.margen < 0 %}baja{% else %}sube{% endif %}">{{ mes_actual.margen }}% de margen</p>{% endif %}
+                </div>
+            </div>
+        </section>
+                </div>
+
+                <div class="dash-grid">
+        <section class="panel panel-ancho">
+            <header class="panel-head">
+                <h2>Ingresos vs gastos de {{ etiqueta }}</h2>
+                <span class="panel-sub">Carga aqui lo gastado en materia prima e insumos de este periodo (ej: "20 pollos", "15 kg de papa", "aceite y condimentos").</span>
+            </header>
+
+            <div class="kpis">
+                <div class="kpi kpi-hero">
+                    <p class="kpi-label">Ingresos</p>
+                    <p class="kpi-valor">${{ kpi.ingresos|floatformat:2 }}</p>
+                </div>
+                <div class="kpi">
+                    <p class="kpi-label">Gastos</p>
+                    <p class="kpi-valor">${{ financiero.total_gastos|floatformat:2 }}</p>
+                </div>
+                <div class="kpi">
+                    <p class="kpi-label">{% if financiero.ganancia < 0 %}Perdida{% else %}Ganancia{% endif %}</p>
+                    <p class="kpi-valor {% if financiero.ganancia < 0 %}neg{% endif %}">${{ financiero.ganancia|floatformat:2 }}</p>
+                    {% if financiero.margen is not None %}<p class="kpi-delta {% if financiero.margen < 0 %}baja{% else %}sube{% endif %}">{{ financiero.margen }}% de margen</p>{% endif %}
+                </div>
+            </div>
+
+            <form method="post" action="{% url 'agregar_gasto' %}" class="gasto-form">
+                {% csrf_token %}
+                <input type="hidden" name="volver" value="rango={{ rango }}&fecha={{ ancla|date:'Y-m-d' }}">
+                <input type="date" name="fecha" value="{{ ancla|date:'Y-m-d' }}" required>
+                <select name="categoria">
+                    {% for valor, nombre in categorias_gasto %}
+                    <option value="{{ valor }}">{{ nombre }}</option>
+                    {% endfor %}
+                </select>
+                <input type="text" name="descripcion" placeholder='Ej: "20 pollos", "15 kg de papa"' required maxlength="200">
+                <input type="number" name="monto" min="0.01" step="0.01" placeholder="Monto $" required>
+                <button type="submit" class="btn-guardar">Agregar gasto</button>
+            </form>
+
+            <div class="tabla-scroll">
+                <table class="tabla">
+                    <thead>
+                        <tr><th>Fecha</th><th>Categoria</th><th>Descripcion</th><th class="num">Monto</th><th></th></tr>
+                    </thead>
+                    <tbody>
+                        {% for g in financiero.gastos %}
+                        <tr>
+                            <td class="mono">{{ g.fecha|date:"d/m/Y" }}</td>
+                            <td class="detalle">{{ g.get_categoria_display }}</td>
+                            <td>{{ g.descripcion }}</td>
+                            <td class="num">${{ g.monto|floatformat:2 }}</td>
+                            <td>
+                                <form method="post" action="{% url 'eliminar_gasto' g.id %}" onsubmit="return confirm('¿Eliminar este gasto?');">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="volver" value="rango={{ rango }}&fecha={{ ancla|date:'Y-m-d' }}">
+                                    <button type="submit" class="btn-eliminar-fila" aria-label="Eliminar gasto">✕</button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="5" class="vacio">Sin gastos cargados en este periodo.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                    {% if financiero.gastos %}
+                    <tfoot>
+                        <tr><td colspan="3" class="num"><strong>Total gastos del periodo</strong></td><td class="num"><strong>${{ financiero.total_gastos|floatformat:2 }}</strong></td><td></td></tr>
                     </tfoot>
                     {% endif %}
                 </table>

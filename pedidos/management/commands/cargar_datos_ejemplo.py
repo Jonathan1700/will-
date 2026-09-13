@@ -4,10 +4,10 @@ from pedidos.models import Mesa
 
 
 class Command(BaseCommand):
-    help = "Crea 8 mesas y carga el menu real (equivale a correr cargar_menu_brasas)"
+    help = "Crea 5 mesas y carga el menu real (equivale a correr cargar_menu_brasas)"
 
     def handle(self, *args, **kwargs):
-        for numero in range(1, 9):
+        for numero in range(1, 6):
             Mesa.objects.get_or_create(numero=numero)
-        self.stdout.write("8 mesas listas.")
+        self.stdout.write("5 mesas listas.")
         call_command("cargar_menu_brasas")

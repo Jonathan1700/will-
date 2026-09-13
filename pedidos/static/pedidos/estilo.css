@@ -283,6 +283,32 @@ header.top .mesa {
     cursor: not-allowed;
 }
 
+.card-acciones {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* venta directa: acompañamiento/bebida/gaseosa suelto que se cobra al instante */
+.btn-directo {
+    width: 36px;
+    height: 36px;
+    flex-shrink: 0;
+    border: none;
+    background: var(--navy);
+    color: var(--mustard);
+    font-size: 15px;
+    line-height: 1;
+    border-radius: 50%;
+    cursor: pointer;
+}
+
+.btn-directo:disabled {
+    background: #D9D0BC;
+    color: var(--ink-soft);
+    cursor: not-allowed;
+}
+
 .mesas-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
@@ -352,12 +378,6 @@ header.top .mesa {
     text-transform: uppercase;
     letter-spacing: 0.5px;
     margin: 30px 0 4px;
-}
-
-.seccion-ayuda {
-    font-size: 12px;
-    color: var(--ink-soft);
-    margin: 0 0 14px;
 }
 
 /* ---- comanda tipo factura ---- */
@@ -507,6 +527,26 @@ table.ticket .t-num {
 .disp-card.off .disp-media { filter: grayscale(1); }
 .disp-card.off .disp-estado { background: var(--danger-bg); color: var(--danger); }
 
+/* categorias de disponibilidad en paginas: se desliza el dedo hacia los lados
+   para cambiar de categoria (combos -> pollo -> acompañamientos -> ...) en vez
+   de tener que bajar toda la columna. */
+.disp-categorias {
+    display: flex;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    margin: 0 -16px;
+}
+.disp-categorias::-webkit-scrollbar { display: none; }
+
+.disp-pagina {
+    flex: 0 0 100%;
+    min-width: 100%;
+    scroll-snap-align: start;
+    padding: 0 16px;
+}
+
 /* titulo de cada categoria en disponibilidad */
 .disp-cat {
     font-size: 12px;
@@ -514,12 +554,10 @@ table.ticket .t-num {
     text-transform: uppercase;
     letter-spacing: .06em;
     color: var(--ink-soft);
-    margin: 22px 0 10px;
+    margin: 8px 0 10px;
     padding-bottom: 6px;
     border-bottom: 1px solid var(--line);
 }
-
-.disp-cat:first-of-type { margin-top: 8px; }
 
 .disp-timer {
     font-size: 11px;
@@ -1004,8 +1042,90 @@ table.ticket .t-num {
 .btn-enviar:active { transform: scale(.985); }
 .btn-enviar:disabled { opacity: .4; cursor: not-allowed; box-shadow: none; }
 
+.check-llevar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12.5px;
+    font-weight: 700;
+    color: var(--ink);
+    margin-bottom: 10px;
+    cursor: pointer;
+}
+.check-llevar input { width: 18px; height: 18px; accent-color: var(--navy); flex-shrink: 0; }
+.check-llevar small { font-weight: 500; color: var(--ink-soft); }
+
 /* barra flotante y fondo: solo en pantallas angostas */
 .pedido-bar, .pedido-backdrop { display: none; }
+
+/* ---- panel "Venta directa": siempre flotante encima, en cualquier tamaño de pantalla ---- */
+.panel-directo {
+    position: fixed;
+    left: 0; right: 0; bottom: 0;
+    max-height: 84vh;
+    background: #FFFFFF;
+    border-radius: 22px 22px 0 0;
+    box-shadow: 0 -10px 30px rgba(16, 27, 48, .3);
+    display: flex;
+    flex-direction: column;
+    transform: translateY(105%);
+    transition: transform .22s ease;
+    z-index: 90;
+}
+
+.panel-directo.abierto { transform: none; }
+.panel-directo .pedido-lineas { max-height: 40vh; }
+
+.panel-directo .pedido-cerrar {
+    display: block;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    border: none;
+    background: var(--cream);
+    color: var(--navy);
+    font-size: 16px;
+    font-weight: 800;
+    cursor: pointer;
+}
+
+.btn-directo-cobrar { background: var(--navy); color: var(--mustard); }
+
+.directo-bar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    position: fixed;
+    left: 12px; right: 12px; bottom: 84px;
+    max-width: 360px;
+    margin: 0 auto;
+    height: 56px;
+    padding: 0 16px 0 12px;
+    border: none;
+    border-radius: 14px;
+    background: var(--navy);
+    color: var(--cream);
+    font-weight: 700;
+    font-size: 13px;
+    cursor: pointer;
+    z-index: 60;
+    box-shadow: 0 8px 22px rgba(16, 27, 48, .35);
+}
+
+.directo-bar strong {
+    font-family: 'Anton', sans-serif;
+    font-size: 18px;
+    letter-spacing: .5px;
+    color: var(--mustard);
+}
+
+.directo-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(16, 27, 48, .5);
+    z-index: 85;
+}
+.directo-backdrop[hidden] { display: none; }
 
 /* ---- hoja de opciones (pieza / acompañamiento) ---- */
 .modal-overlay {
@@ -1180,6 +1300,11 @@ table.ticket .t-num {
     border: solid #FFFFFF;
     border-width: 0 3px 3px 0;
     transform: rotate(45deg);
+}
+
+.opcion:disabled, .opcion.sin-stock {
+    opacity: .45;
+    cursor: not-allowed;
 }
 
 .sheet-foot {
@@ -1385,6 +1510,71 @@ table.ticket .t-num {
 .control .disp-nombre { font-size: 11.5px; }
 .control .disp-estado { font-size: 9px; padding: 2px 8px; }
 .control form { display: contents; }
+
+/* ---- presas disponibles: rueda deslizable, como el selector de tiempo del celular ---- */
+.piezas-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    margin-bottom: 18px;
+}
+
+.pieza-rueda {
+    background: var(--cream);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 8px;
+    text-align: center;
+}
+
+.pieza-nombre {
+    display: block;
+    font-weight: 800;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: .02em;
+    color: var(--navy);
+    margin-bottom: 4px;
+}
+
+.rueda-scroll {
+    position: relative;
+    height: 40px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+}
+.rueda-scroll::-webkit-scrollbar { display: none; }
+
+.rueda-pista { display: flex; align-items: center; height: 100%; }
+
+.rueda-num {
+    scroll-snap-align: center;
+    flex-shrink: 0;
+    width: 44px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Anton', sans-serif;
+    font-size: 14px;
+    color: var(--ink-soft);
+}
+
+.rueda-num.centro {
+    color: var(--navy);
+    font-size: 20px;
+}
+
+.pieza-valor {
+    display: block;
+    margin-top: 4px;
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--ink-soft);
+}
 
 /* tablet vertical: una columna, comandas de 2 en 2 y el control debajo */
 @media (max-width: 999px) {
@@ -1597,6 +1787,45 @@ table.ticket .t-num {
 .kpi-delta.neutro { color: var(--ink-soft); font-weight: 600; }
 .kpi-hero .kpi-delta.sube { color: #8FD39A; }
 .kpi-hero .kpi-delta.baja { color: #F3A196; }
+.kpi-valor.neg { color: var(--danger); }
+
+/* ---- gastos de materia prima (dashboard) ---- */
+.gasto-form {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+    margin: 4px 0 18px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--line);
+}
+
+.gasto-form input[type="date"],
+.gasto-form input[type="number"],
+.gasto-form select {
+    height: 42px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 0 10px;
+    font-family: inherit;
+    font-size: 13px;
+    background: #FFFFFF;
+}
+
+.gasto-form input[type="text"] { flex: 1 1 220px; }
+.gasto-form input[type="number"] { width: 110px; }
+
+.btn-eliminar-fila {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    border: none;
+    background: var(--danger-bg);
+    color: var(--danger);
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+}
 
 /* ---- paneles ---- */
 .dash-grid {

@@ -15,6 +15,7 @@
     <div class="comanda" data-orden-id="{{ orden.id }}">
         <div class="comanda-header">
             <span class="mesa-num">Mesa {{ orden.mesa.numero }}</span>
+            {% if orden.para_llevar %}<span class="chip chip-cambio">🥡 Para llevar</span>{% endif %}
             {% with min=orden.minutos_en_espera %}
             <span class="tiempo-tag {% if min < 5 %}reciente{% elif min < 12 %}medio{% else %}tarde{% endif %}">
                 hace {{ min }} min
@@ -44,6 +45,8 @@
                         {{ item.producto.nombre }}
                         {% if item.notas %}<span class="t-nota">{{ item.notas }}</span>{% endif %}
                         {% if item.acompanamiento %}<span class="t-nota t-cambio">sin {{ item.producto.acompanamiento_incluido|lower }} → {{ item.acompanamiento.nombre }}</span>{% endif %}
+                        {% if item.sin_acompanamientos %}<span class="t-nota t-cambio">sin {{ item.sin_acompanamientos|lower }}</span>{% endif %}
+                        {% for grupo, opcion in item.lista_variantes_elegidas %}<span class="t-nota">{{ grupo }}: {{ opcion }}</span>{% endfor %}
                     </td>
                     <td class="t-num">${{ item.precio_unitario }}</td>
                     <td class="t-num">${{ item.subtotal }}</td>
@@ -68,39 +71,71 @@
 </section>
 
 <aside class="control" aria-label="Disponibilidad">
-    <h3 class="seccion-titulo">Disponibilidad</h3>
-    <p class="seccion-ayuda">Cocina: toca para agotado o tiempo. Bebidas: toca y cambia al instante.</p>
-
-    {% for nombre_cat, lista in grupos %}
-    <h4 class="disp-cat">{{ nombre_cat }}</h4>
-    <div class="disp-grid">
-        {% for producto in lista %}
-        {% if producto.categoria == 'bebidas' or producto.categoria == 'gaseosas' %}
-        <form method="post" action="{% url 'toggle_disponibilidad' producto.id %}">
-            {% csrf_token %}
-            <button type="submit" class="disp-card {% if producto.disponible %}on{% else %}off{% endif %}">
-                <span class="disp-media">{% if producto.imagen %}<img src="{{ producto.imagen.url }}" alt="">{% elif producto.categoria == 'gaseosas' %}🥤{% else %}🧃{% endif %}</span>
-                <span class="disp-nombre">{{ producto.nombre }}</span>
-                <span class="disp-estado">{% if producto.disponible %}Disponible{% else %}Agotado{% endif %}</span>
-            </button>
-        </form>
-        {% else %}
-        <button type="button"
-                class="disp-card con-tiempo {% if producto.disponible %}on{% else %}off{% endif %}"
-                data-nombre="{{ producto.nombre }}"
-                data-disponible="{% if producto.disponible %}1{% endif %}"
-                data-segundos="{{ producto.segundos_restantes }}"
-                data-url-toggle="{% url 'toggle_disponibilidad' producto.id %}"
-                data-url-timer="{% url 'poner_temporizador' producto.id %}">
-            <span class="disp-media">{% if producto.imagen %}<img src="{{ producto.imagen.url }}" alt="">{% elif producto.es_combo %}🍽️{% elif producto.categoria == 'acompanamientos' %}🍚{% else %}🍗{% endif %}</span>
-            <span class="disp-nombre">{{ producto.nombre }}</span>
-            <span class="disp-estado">{% if producto.disponible %}Disponible{% else %}Agotado{% endif %}</span>
-            <span class="disp-timer" {% if not producto.segundos_restantes %}hidden{% endif %}>⏱ --:--</span>
-        </button>
-        {% endif %}
+    <h3 class="seccion-titulo">Presas disponibles</h3>
+    <div class="piezas-grid">
+        {% for pieza in piezas_pollo %}
+        <div class="pieza-rueda" data-pieza="{{ pieza.nombre }}" data-url="{% url 'actualizar_stock_pieza' pieza.id %}" data-valor="{{ pieza.stock }}">
+            <span class="pieza-nombre">{{ pieza.nombre }}</span>
+            <div class="rueda-scroll"><div class="rueda-pista"></div></div>
+            <span class="pieza-valor">{{ pieza.stock }} disponibles</span>
+        </div>
+        {% empty %}
+        <p class="menu-vacio">Agrega presas de pollo desde /admin/.</p>
         {% endfor %}
     </div>
-    {% endfor %}
+
+    <h3 class="seccion-titulo">Disponibilidad</h3>
+
+    <div class="disp-categorias">
+        {% for nombre_cat, lista in grupos %}
+        <section class="disp-pagina">
+            <h4 class="disp-cat">{{ nombre_cat }}</h4>
+            <div class="disp-grid">
+                {% for producto in lista %}
+                {% if producto.categoria == 'bebidas' or producto.categoria == 'gaseosas' %}
+                <form method="post" action="{% url 'toggle_disponibilidad' producto.id %}">
+                    {% csrf_token %}
+                    <button type="submit" class="disp-card {% if producto.disponible %}on{% else %}off{% endif %}">
+                        <span class="disp-media">{% if producto.imagen %}<img src="{{ producto.imagen.url }}" alt="">{% elif producto.categoria == 'gaseosas' %}🥤{% else %}🧃{% endif %}</span>
+                        <span class="disp-nombre">{{ producto.nombre }}</span>
+                        <span class="disp-estado">{% if producto.disponible %}Disponible{% else %}Agotado{% endif %}</span>
+                    </button>
+                </form>
+                {% else %}
+                <button type="button"
+                        class="disp-card con-tiempo {% if producto.disponible %}on{% else %}off{% endif %}"
+                        data-nombre="{{ producto.nombre }}"
+                        data-disponible="{% if producto.disponible %}1{% endif %}"
+                        data-segundos="{{ producto.segundos_restantes }}"
+                        data-url-toggle="{% url 'toggle_disponibilidad' producto.id %}"
+                        data-url-timer="{% url 'poner_temporizador' producto.id %}">
+                    <span class="disp-media">{% if producto.imagen %}<img src="{{ producto.imagen.url }}" alt="">{% elif producto.es_combo %}🍽️{% elif producto.categoria == 'acompanamientos' %}🍚{% else %}🍗{% endif %}</span>
+                    <span class="disp-nombre">{{ producto.nombre }}</span>
+                    <span class="disp-estado">{% if producto.disponible %}Disponible{% else %}Agotado{% endif %}</span>
+                    <span class="disp-timer" {% if not producto.segundos_restantes %}hidden{% endif %}>⏱ --:--</span>
+                </button>
+                {% endif %}
+                {% endfor %}
+            </div>
+
+            {% if nombre_cat == "Acompañamientos" and tipos_menestra %}
+            <h4 class="disp-cat">Menestra</h4>
+            <div class="disp-grid">
+                {% for tipo in tipos_menestra %}
+                <form method="post" action="{% url 'toggle_menestra' tipo.id %}">
+                    {% csrf_token %}
+                    <button type="submit" class="disp-card {% if tipo.disponible %}on{% else %}off{% endif %}">
+                        <span class="disp-media">🫘</span>
+                        <span class="disp-nombre">{{ tipo.nombre }}</span>
+                        <span class="disp-estado">{% if tipo.disponible %}Disponible{% else %}Agotado{% endif %}</span>
+                    </button>
+                </form>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </section>
+        {% endfor %}
+    </div>
 </aside>
 
     {# hoja de acciones de un producto de cocina: estado + temporizador con presets #}
@@ -193,7 +228,7 @@ setInterval(() => {
         .then(r => r.json())
         .then(data => {
             if (data.ordenes.map(o => o.id).join(',') !== firmaActual) {
-                recargar();
+                location.reload();
                 return;
             }
             data.ordenes.forEach(o => {
@@ -204,5 +239,88 @@ setInterval(() => {
             });
         });
 }, 8000);
+
+// Rueda de presas disponibles: deslizar como el selector de tiempo de un celular,
+// sin tener que escribir el numero. Al soltar, guarda el valor centrado.
+// Ademas, cada venta de una presa la descuenta sola (al confirmar el mesero su pedido),
+// asi que la rueda se re-sincroniza sola cada pocos segundos sin que cocina la toque.
+const ruedasPorPieza = {};
+
+document.querySelectorAll('.pieza-rueda').forEach(card => {
+    const scrollEl = card.querySelector('.rueda-scroll');
+    const pista = card.querySelector('.rueda-pista');
+    const valorEl = card.querySelector('.pieza-valor');
+    const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+    const MAX = 40, ANCHO = 44;
+
+    for (let n = 0; n <= MAX; n++) {
+        const num = document.createElement('div');
+        num.className = 'rueda-num';
+        num.textContent = n;
+        num.dataset.n = n;
+        pista.appendChild(num);
+    }
+    const espacio = (scrollEl.clientWidth - ANCHO) / 2;
+    pista.style.paddingLeft = espacio + 'px';
+    pista.style.paddingRight = espacio + 'px';
+
+    const marcarCentro = n => {
+        pista.querySelectorAll('.rueda-num').forEach(d => d.classList.toggle('centro', Number(d.dataset.n) === n));
+        valorEl.textContent = `${n} disponible${n === 1 ? '' : 's'}`;
+    };
+
+    let actual = Math.max(0, Math.min(MAX, parseInt(card.dataset.valor, 10) || 0));
+    scrollEl.scrollLeft = actual * ANCHO;
+    marcarCentro(actual);
+
+    let quieto = null;
+    let interactuando = false;
+    let saltarEnvio = false;
+    let ultimoCambioLocal = 0;
+
+    ['pointerdown', 'touchstart'].forEach(ev => scrollEl.addEventListener(ev, () => { interactuando = true; }));
+    ['pointerup', 'touchend', 'pointercancel'].forEach(ev => scrollEl.addEventListener(ev, () => {
+        setTimeout(() => { interactuando = false; }, 400);
+    }));
+
+    scrollEl.addEventListener('scroll', () => {
+        const n = Math.max(0, Math.min(MAX, Math.round(scrollEl.scrollLeft / ANCHO)));
+        marcarCentro(n);
+        actual = n;
+        if (saltarEnvio) return;
+        ultimoCambioLocal = Date.now();
+        clearTimeout(quieto);
+        quieto = setTimeout(() => {
+            const datos = new FormData();
+            datos.append('cantidad', n);
+            fetch(card.dataset.url, { method: 'POST', headers: { 'X-CSRFToken': csrftoken }, body: datos });
+        }, 300);
+    });
+
+    // Aplica un stock que cambio en el servidor (venta de una presa), salvo que
+    // el cocinero este tocando la rueda justo ahora o la acabe de mover el mismo.
+    ruedasPorPieza[card.dataset.pieza] = stock => {
+        const n = Math.max(0, Math.min(MAX, stock));
+        if (interactuando || n === actual || Date.now() - ultimoCambioLocal < 2000) return;
+        saltarEnvio = true;
+        actual = n;
+        scrollEl.scrollLeft = n * ANCHO;
+        marcarCentro(n);
+        setTimeout(() => { saltarEnvio = false; }, 400);
+    };
+});
+
+if (Object.keys(ruedasPorPieza).length) {
+    setInterval(() => {
+        fetch("{% url 'disponibilidad_json' %}")
+            .then(r => r.json())
+            .then(data => {
+                Object.entries(data.piezas || {}).forEach(([nombre, stock]) => {
+                    if (ruedasPorPieza[nombre]) ruedasPorPieza[nombre](stock);
+                });
+            })
+            .catch(() => {});
+    }, 3000);
+}
 </script>
 {% endblock %}

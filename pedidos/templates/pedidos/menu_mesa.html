@@ -66,26 +66,40 @@
                     </div>
                     <div class="card-footer">
                         <span class="precio">${{ producto.precio }}</span>
-                        <form method="post" action="{% url 'agregar_item' orden.id producto.id %}" class="form-agregar">
-                            {% csrf_token %}
-                            <input type="hidden" name="categoria" value="{{ categoria_activa }}">
-                            {% if producto.requiere_pieza or producto.permite_cambio %}
-                            <input type="hidden" name="pieza">
-                            <input type="hidden" name="acompanamiento">
-                            <button type="button" class="btn-add abrir-opciones"
-                                    data-nombre="{{ producto.nombre }}"
-                                    data-precio="{{ producto.precio|unlocalize }}"
-                                    data-requiere-pieza="{% if producto.requiere_pieza %}1{% endif %}"
-                                    data-incluido="{{ producto.acompanamiento_incluido }}"
-                                    {% if not disponible %}disabled{% endif %} aria-label="Agregar">
-                                {% if disponible %}+{% else %}✕{% endif %}
-                            </button>
-                            {% else %}
-                            <button class="btn-add" {% if not disponible %}disabled{% endif %} aria-label="Agregar">
-                                {% if disponible %}+{% else %}✕{% endif %}
-                            </button>
+                        <div class="card-acciones">
+                            {% if producto.categoria in categorias_venta_directa %}
+                            <form method="post" action="{% url 'agregar_item_directo' mesa.id producto.id %}">
+                                {% csrf_token %}
+                                <input type="hidden" name="categoria" value="{{ categoria_activa }}">
+                                <button type="submit" class="btn-directo" {% if not disponible %}disabled{% endif %}
+                                        title="Venta directa: se cobra al instante, no pasa por cocina"></button>
+                            </form>
                             {% endif %}
-                        </form>
+                            <form method="post" action="{% url 'agregar_item' orden.id producto.id %}" class="form-agregar">
+                                {% csrf_token %}
+                                <input type="hidden" name="categoria" value="{{ categoria_activa }}">
+                                {% if producto.requiere_pieza or producto.permite_cambio or producto.tiene_opciones_incluidas or producto.tiene_variantes %}
+                                <input type="hidden" name="pieza">
+                                <input type="hidden" name="acompanamiento">
+                                <input type="hidden" name="sin_acompanamientos">
+                                <input type="hidden" name="variantes">
+                                <button type="button" class="btn-add abrir-opciones"
+                                        data-nombre="{{ producto.nombre }}"
+                                        data-precio="{{ producto.precio|unlocalize }}"
+                                        data-requiere-pieza="{% if producto.requiere_pieza %}1{% endif %}"
+                                        data-incluido="{{ producto.acompanamiento_incluido }}"
+                                        data-opciones-incluidas="{{ producto.opciones_incluidas }}"
+                                        data-variantes='{{ producto.variantes_json }}'
+                                        {% if not disponible %}disabled{% endif %} aria-label="Agregar">
+                                    {% if disponible %}+{% else %}✕{% endif %}
+                                </button>
+                                {% else %}
+                                <button class="btn-add" {% if not disponible %}disabled{% endif %} aria-label="Agregar">
+                                    {% if disponible %}+{% else %}✕{% endif %}
+                                </button>
+                                {% endif %}
+                            </form>
+                        </div>
                     </div>
                 </div>
             </article>
@@ -153,10 +167,15 @@
             {% endif %}
             <div class="pedido-total">
                 <span>Total</span>
-                <strong>${{ orden.total }}</strong>
+                <strong id="pedido-total-monto">${{ orden.total }}</strong>
             </div>
             <form method="post" action="{% url 'confirmar_orden' orden.id %}">
                 {% csrf_token %}
+                <label class="check-llevar">
+                    <input type="checkbox" name="para_llevar" value="1" id="chk-para-llevar"
+                           data-unidades="{{ orden.unidades_con_envase }}">
+                    <span>Para llevar <small>(+${{ orden.RECARGO_PARA_LLEVAR }} por plato)</small></span>
+                </label>
                 <button class="btn-enviar" {% if orden.items.count == 0 %}disabled{% endif %}>Enviar a cocina</button>
             </form>
         </div>
@@ -169,6 +188,69 @@
         <strong>${{ orden.total }}</strong>
     </button>
     <div class="pedido-backdrop" id="pedido-backdrop" hidden></div>
+
+    {# ---- panel "Venta directa": acompañamiento/bebida/gaseosa suelto, se cobra al instante ---- #}
+    {% if orden_directa %}
+    <aside class="panel-directo" id="panel-directo" aria-label="Venta directa">
+        <div class="pedido-head">
+            <div>
+                <p class="pedido-titulo">Venta directa</p>
+                <p class="pedido-sub">Mesa {{ mesa.numero }} · no pasa por cocina, se cobra ya</p>
+            </div>
+            <button type="button" class="pedido-cerrar" id="directo-cerrar" aria-label="Cerrar">✕</button>
+        </div>
+
+        <div class="pedido-lineas">
+            {% for item in orden_directa.items.all %}
+            <div class="linea">
+                <div class="linea-info">
+                    <span class="linea-nombre">{{ item.producto.nombre }}</span>
+                    <span class="linea-precio">${{ item.subtotal }}</span>
+                </div>
+                <div class="stepper">
+                    <button type="submit" form="form-directo-cant-{{ item.id }}" name="delta" value="-1"
+                            class="{% if item.cantidad == 1 %}borrar{% endif %}"
+                            aria-label="{% if item.cantidad == 1 %}Quitar{% else %}Uno menos{% endif %}">
+                        {% if item.cantidad == 1 %}🗑{% else %}−{% endif %}
+                    </button>
+                    <span>{{ item.cantidad }}</span>
+                    <button type="submit" form="form-directo-cant-{{ item.id }}" name="delta" value="1" aria-label="Uno mas">+</button>
+                </div>
+            </div>
+            <form method="post" action="{% url 'cambiar_cantidad' orden_directa.id item.id %}" id="form-directo-cant-{{ item.id }}">
+                {% csrf_token %}
+                <input type="hidden" name="categoria" value="{{ categoria_activa }}">
+            </form>
+            {% empty %}
+            <div class="pedido-vacio">
+                <span aria-hidden="true"></span>
+                <p>Toca el rayo de un acompañamiento, bebida o gaseosa para venderlo directo.</p>
+            </div>
+            {% endfor %}
+        </div>
+
+        <div class="pedido-foot">
+            <div class="pedido-total">
+                <span>Total</span>
+                <strong>${{ orden_directa.total }}</strong>
+            </div>
+            <form method="post" action="{% url 'confirmar_venta_directa' orden_directa.id %}">
+                {% csrf_token %}
+                <input type="hidden" name="categoria" value="{{ categoria_activa }}">
+                <button class="btn-enviar btn-directo-cobrar" {% if orden_directa.items.count == 0 %}disabled{% endif %}>
+                     Cobrar venta directa
+                </button>
+            </form>
+        </div>
+    </aside>
+
+    <button type="button" class="directo-bar" id="directo-abrir">
+        <span class="pedido-bar-n">{{ orden_directa.items.count }}</span>
+        <span class="pedido-bar-txt">Venta directa</span>
+        <strong>${{ orden_directa.total }}</strong>
+    </button>
+    {% endif %}
+    <div class="directo-backdrop" id="directo-backdrop" hidden></div>
 
     <a href="{% url 'elegir_mesa' %}" class="aviso-listos" id="aviso-listos" hidden></a>
 
@@ -188,8 +270,12 @@
                     <h3 class="sheet-seccion">Elige la pieza <span class="req">Obligatorio</span></h3>
                     <div class="opciones opciones-2">
                         {% for pieza in piezas_pollo %}
-                        <button type="button" class="opcion pieza-btn" data-pieza="{{ pieza }}">
-                            <span class="opcion-nombre">{{ pieza }}</span>
+                        <button type="button" class="opcion pieza-btn {% if pieza.stock <= 0 %}sin-stock{% endif %}"
+                                data-pieza="{{ pieza.nombre }}" {% if pieza.stock <= 0 %}disabled{% endif %}>
+                            <span class="opcion-nombre">{{ pieza.nombre }}</span>
+                            <span class="opcion-precio {% if pieza.stock > 0 %}incluido{% endif %}">
+                                {% if pieza.stock > 0 %}Quedan {{ pieza.stock }}{% else %}Agotada{% endif %}
+                            </span>
                             <span class="opcion-check" aria-hidden="true"></span>
                         </button>
                         {% endfor %}
@@ -214,6 +300,15 @@
                     </div>
                     <p class="sheet-ayuda">¿Quiere lo incluido <strong>y ademas</strong> una porcion extra? Agregala desde la pestaña Acompañamientos (precio normal).</p>
                 </section>
+
+                <section id="seccion-quitar" hidden>
+                    <h3 class="sheet-seccion">Viene con <span class="sheet-seccion-nota">toca para quitar lo que no quiere</span></h3>
+                    <div class="opciones opciones-2" id="lista-quitar"></div>
+                </section>
+
+                <section id="seccion-variantes" hidden>
+                    <div id="grupos-variantes"></div>
+                </section>
             </div>
 
             <div class="sheet-foot">
@@ -230,6 +325,9 @@
 <script>
 const fmt = n => '$' + n.toFixed(2).replace('.', ',');
 
+// disponibilidad de cada tipo de menestra (Lenteja/Frejol), la avisa cocina
+let disponibilidadMenestra = {{ menestra_json|safe }};
+
 // Tocar cualquier parte de la tarjeta equivale a tocar su boton "+"
 document.querySelectorAll('.card').forEach(card => {
     card.addEventListener('click', e => {
@@ -239,7 +337,7 @@ document.querySelectorAll('.card').forEach(card => {
     });
 });
 
-// Hoja de opciones: pieza (1/8) y/o cambio de acompañamiento ("Mejora tu combo")
+// Hoja de opciones: pieza, cambio de acompañamiento, quitar lo incluido y variantes
 (() => {
     const modal = document.getElementById('modal-opciones');
     const nombreEl = document.getElementById('modal-producto-nombre');
@@ -247,13 +345,30 @@ document.querySelectorAll('.card').forEach(card => {
     const totalEl = document.getElementById('modal-total');
     const seccionPieza = document.getElementById('seccion-pieza');
     const seccionCambio = document.getElementById('seccion-cambio');
+    const seccionQuitar = document.getElementById('seccion-quitar');
+    const listaQuitar = document.getElementById('lista-quitar');
+    const seccionVariantes = document.getElementById('seccion-variantes');
+    const gruposVariantes = document.getElementById('grupos-variantes');
     const incluidoSpan = document.getElementById('modal-incluido');
     const btnAgregar = document.getElementById('modal-agregar');
     let formActivo = null, requierePieza = false, precioBase = 0, pieza = '', cambioId = '', extra = 0;
+    let quitados = [];              // acompañamientos incluidos que el cliente NO quiere
+    let gruposRequeridos = [];      // nombres de los grupos de variante (ej: ['Menestra'])
+    let variantesElegidas = {};     // grupo -> opcion elegida
 
     const marcar = (lista, activo) => lista.forEach(b => b.classList.toggle('seleccionado', b === activo));
+    // agotado = explicitamente False en disponibilidadMenestra (opciones no controladas, ej. Blanco/Moro, quedan libres)
+    const refrescarDisponibilidadOpciones = () => {
+        gruposVariantes.querySelectorAll('.opcion[data-opcion]').forEach(pill => {
+            const disponible = disponibilidadMenestra[pill.dataset.opcion];
+            const agotada = disponible === false;
+            pill.disabled = agotada;
+            pill.classList.toggle('sin-stock', agotada);
+        });
+    };
     const refrescar = () => {
-        btnAgregar.disabled = requierePieza && !pieza;
+        const faltaVariante = gruposRequeridos.some(g => !variantesElegidas[g]);
+        btnAgregar.disabled = (requierePieza && !pieza) || faltaVariante;
         totalEl.textContent = fmt(precioBase + extra);
     };
     const cerrar = () => { modal.hidden = true; formActivo = null; };
@@ -273,12 +388,67 @@ document.querySelectorAll('.card').forEach(card => {
 
             marcar(modal.querySelectorAll('.pieza-btn'), null);
             marcar(modal.querySelectorAll('.cambio-btn'), modal.querySelector('.cambio-btn[data-id=""]'));
+
+            // que acompañamientos incluidos se pueden quitar (arrancan todos incluidos)
+            const opciones = (btn.dataset.opcionesIncluidas || '').split(',').map(s => s.trim()).filter(Boolean);
+            quitados = [];
+            listaQuitar.innerHTML = '';
+            seccionQuitar.hidden = opciones.length < 2;
+            opciones.forEach(nombreOpcion => {
+                const pill = document.createElement('button');
+                pill.type = 'button';
+                pill.className = 'opcion seleccionado';
+                pill.innerHTML = `<span class="opcion-nombre">${nombreOpcion}</span><span class="opcion-check" aria-hidden="true"></span>`;
+                pill.addEventListener('click', () => {
+                    const incluye = !pill.classList.contains('seleccionado');
+                    pill.classList.toggle('seleccionado', incluye);
+                    quitados = quitados.filter(n => n !== nombreOpcion);
+                    if (!incluye) quitados.push(nombreOpcion);
+                });
+                listaQuitar.appendChild(pill);
+            });
+
+            // variantes de eleccion unica (ej: Menestra -> Lenteja/Frejol)
+            let grupos = [];
+            try { grupos = JSON.parse(btn.dataset.variantes || '[]'); } catch (e) { grupos = []; }
+            gruposRequeridos = grupos.map(g => g.nombre);
+            variantesElegidas = {};
+            gruposVariantes.innerHTML = '';
+            seccionVariantes.hidden = grupos.length === 0;
+            grupos.forEach(grupo => {
+                const wrap = document.createElement('section');
+                const titulo = document.createElement('h3');
+                titulo.className = 'sheet-seccion';
+                titulo.innerHTML = `${grupo.nombre} <span class="req">Obligatorio</span>`;
+                const opts = document.createElement('div');
+                opts.className = 'opciones opciones-2';
+                grupo.opciones.forEach(opcion => {
+                    const pill = document.createElement('button');
+                    pill.type = 'button';
+                    pill.className = 'opcion';
+                    pill.dataset.opcion = opcion;
+                    pill.innerHTML = `<span class="opcion-nombre">${opcion}</span><span class="opcion-check" aria-hidden="true"></span>`;
+                    pill.addEventListener('click', () => {
+                        if (pill.disabled) return;
+                        variantesElegidas[grupo.nombre] = opcion;
+                        marcar([...opts.querySelectorAll('.opcion')], pill);
+                        refrescar();
+                    });
+                    opts.appendChild(pill);
+                });
+                wrap.appendChild(titulo);
+                wrap.appendChild(opts);
+                gruposVariantes.appendChild(wrap);
+            });
+            refrescarDisponibilidadOpciones();
+
             refrescar();
             modal.hidden = false;
         });
     });
 
     modal.querySelectorAll('.pieza-btn').forEach(btn => btn.addEventListener('click', () => {
+        if (btn.disabled) return;
         pieza = btn.dataset.pieza;
         marcar(modal.querySelectorAll('.pieza-btn'), btn);
         refrescar();
@@ -295,6 +465,9 @@ document.querySelectorAll('.card').forEach(card => {
         if (!formActivo) return;
         formActivo.querySelector('input[name="pieza"]').value = pieza;
         formActivo.querySelector('input[name="acompanamiento"]').value = cambioId;
+        formActivo.querySelector('input[name="sin_acompanamientos"]').value = quitados.join(',');
+        formActivo.querySelector('input[name="variantes"]').value =
+            Object.entries(variantesElegidas).map(([g, o]) => `${g}:${o}`).join('|');
         formActivo.requestSubmit();
     });
 
@@ -326,6 +499,33 @@ document.querySelectorAll('.card').forEach(card => {
     checks.forEach(c => c.addEventListener('change', refrescar));
 })();
 
+// Panel "Venta directa": hoja flotante aparte, siempre encima (no forma parte del carrito normal)
+(() => {
+    const panel = document.getElementById('panel-directo');
+    const abrirBtn = document.getElementById('directo-abrir');
+    const backdrop = document.getElementById('directo-backdrop');
+    if (!panel || !abrirBtn || !backdrop) return;
+
+    const abrir = si => { panel.classList.toggle('abierto', si); backdrop.hidden = !si; };
+    abrirBtn.addEventListener('click', () => abrir(true));
+    document.getElementById('directo-cerrar').addEventListener('click', () => abrir(false));
+    backdrop.addEventListener('click', () => abrir(false));
+    // despues de agregar/editar un item directo el servidor vuelve con ?directo=1
+    if (new URLSearchParams(location.search).get('directo') === '1') abrir(true);
+})();
+
+// "Para llevar": suma el recargo (por cada plato de pollo/combos) al total que se ve
+(() => {
+    const chk = document.getElementById('chk-para-llevar');
+    const montoEl = document.getElementById('pedido-total-monto');
+    if (!chk || !montoEl) return;
+    const base = parseFloat(montoEl.textContent.replace(/[^0-9.,]/g, '').replace(',', '.')) || 0;
+    const recargo = {{ orden.RECARGO_PARA_LLEVAR|unlocalize }} * (parseInt(chk.dataset.unidades, 10) || 0);
+    chk.addEventListener('change', () => {
+        montoEl.textContent = fmt(base + (chk.checked ? recargo : 0));
+    });
+})();
+
 // Disponibilidad y temporizadores de cocina: se consulta cada 2.5 s para que lo que
 // toca cocina se vea casi al instante. Prende y apaga productos en ambos sentidos.
 const relojes = {};   // id -> timestamp en que vence el temporizador
@@ -341,6 +541,8 @@ const pintarTimer = (card, segundos) => {
 };
 
 const aplicarDisponibilidad = data => {
+    if (data.menestra) disponibilidadMenestra = data.menestra;
+
     document.querySelectorAll('[data-producto-id]').forEach(card => {
         const id = card.dataset.productoId;
         const disponible = data.disponibilidad[id];
@@ -355,6 +557,17 @@ const aplicarDisponibilidad = data => {
         const segundos = data.temporizadores[id] || 0;
         relojes[id] = segundos ? Date.now() + segundos * 1000 : 0;
         pintarTimer(card, segundos);
+    });
+
+    document.querySelectorAll('.pieza-btn[data-pieza]').forEach(btn => {
+        const stock = data.piezas[btn.dataset.pieza];
+        if (stock === undefined) return;
+        const precio = btn.querySelector('.opcion-precio');
+        const hayStock = stock > 0;
+        btn.classList.toggle('sin-stock', !hayStock);
+        btn.disabled = !hayStock;
+        precio.classList.toggle('incluido', hayStock);
+        precio.textContent = hayStock ? `Quedan ${stock}` : 'Agotada';
     });
 };
 

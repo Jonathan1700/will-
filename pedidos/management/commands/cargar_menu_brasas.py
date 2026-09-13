@@ -1,5 +1,5 @@
 from django.core.management.base import BaseCommand
-from pedidos.models import Producto
+from pedidos.models import PiezaPollo, Producto, TipoMenestra, VarianteProducto
 
 
 # Menu "Brasas" transcrito de la carta fisica. Se puede correr varias veces:
@@ -10,18 +10,25 @@ from pedidos.models import Producto
 PRECIO_CAMBIO = 1.50
 
 INCLUIDO_POLLO = "Papas fritas, patacones y maduros"
+OPCIONES_POLLO = "Papas fritas,Patacones,Maduro"
 INCLUYE_PAPAS = "Papas fritas, patacones, maduros, ensalada y cremas de la casa"
 INCLUYE_ARROZ = "Arroz y menestra, ensalada y cremas de la casa"
 
+# presas disponibles: cocina pone el stock de cada una en /admin/ o desde el panel de cocina
+PIEZAS_POLLO = ["Pechuga", "Cadera", "Pierna", "Ala"]
+
+# tipos de menestra: cocina avisa cual hay disponible (Clasico arroz con menestra)
+TIPOS_MENESTRA = ["Lenteja", "Frejol"]
+
 POLLO = [
     dict(nombre="1 Pollo a la brasa", precio=12.99, combo_incluye=INCLUYE_PAPAS,
-         acompanamiento_incluido=INCLUIDO_POLLO),
+         acompanamiento_incluido=INCLUIDO_POLLO, opciones_incluidas=OPCIONES_POLLO),
     dict(nombre="1/2 Pollo a la brasa", precio=6.50, combo_incluye=INCLUYE_PAPAS,
-         acompanamiento_incluido=INCLUIDO_POLLO),
+         acompanamiento_incluido=INCLUIDO_POLLO, opciones_incluidas=OPCIONES_POLLO),
     dict(nombre="1/4 Pollo a la brasa (pechuga)", precio=3.75, combo_incluye=INCLUYE_PAPAS,
-         acompanamiento_incluido=INCLUIDO_POLLO),
+         acompanamiento_incluido=INCLUIDO_POLLO, opciones_incluidas=OPCIONES_POLLO),
     dict(nombre="1/4 Pollo a la brasa (pierna)", precio=3.25, combo_incluye=INCLUYE_PAPAS,
-         acompanamiento_incluido=INCLUIDO_POLLO),
+         acompanamiento_incluido=INCLUIDO_POLLO, opciones_incluidas=OPCIONES_POLLO),
 ]
 
 # los 1/8 van en la pestaña "Combos"
@@ -29,7 +36,8 @@ COMBOS = [
     dict(nombre="1/8 Pollo a la brasa con arroz y menestra", precio=2.99, combo_incluye=INCLUYE_ARROZ,
          acompanamiento_incluido="Arroz y menestra", requiere_pieza=True, es_combo=True),
     dict(nombre="1/8 Pollo a la brasa", precio=2.75, combo_incluye=INCLUYE_PAPAS,
-         acompanamiento_incluido=INCLUIDO_POLLO, requiere_pieza=True, es_combo=True),
+         acompanamiento_incluido=INCLUIDO_POLLO, opciones_incluidas=OPCIONES_POLLO,
+         requiere_pieza=True, es_combo=True),
 ]
 
 # gaseosas: el catalogo no trae precio, se asume $1.50 (cambialo en /admin/)
@@ -71,6 +79,15 @@ ACOMPANAMIENTOS = [
          combo_incluye="Arroz moro con refrito criollo y menestra"),
 ]
 
+# variantes de eleccion unica por producto: al tocar el producto, el mesero elige una
+# opcion de cada grupo (no cambia el precio, solo le avisa a cocina la preparacion)
+VARIANTES = {
+    "Clasico arroz con menestra": [
+        ("Arroz", "Blanco,Moro"),
+        ("Menestra", "Lenteja,Frejol"),
+    ],
+}
+
 
 class Command(BaseCommand):
     help = "Carga el menu real 'Brasas': combos, pollo, acompañamientos (cambio $1.50), bebidas y gaseosas"
@@ -96,9 +113,23 @@ class Command(BaseCommand):
                     producto.stock = 0
                     producto.save()
 
+                for orden, (nombre_grupo, opciones) in enumerate(VARIANTES.get(producto.nombre, [])):
+                    VarianteProducto.objects.update_or_create(
+                        producto=producto, nombre=nombre_grupo,
+                        defaults=dict(opciones=opciones, orden=orden),
+                    )
+
+        for orden, nombre in enumerate(PIEZAS_POLLO):
+            PiezaPollo.objects.get_or_create(nombre=nombre, defaults=dict(orden=orden))
+
+        for orden, nombre in enumerate(TIPOS_MENESTRA):
+            TipoMenestra.objects.get_or_create(nombre=nombre, defaults=dict(orden=orden))
+
         self.stdout.write(self.style.SUCCESS(
             f"Menu Brasas cargado: {creados} productos nuevos, {actualizados} actualizados.\n"
             f"Chauchitas, Moroclo y Moro Chicoloso tienen precio de cambio ${PRECIO_CAMBIO:.2f} "
             "(el resto viene incluido en el plato o se agrega como porcion extra a precio normal).\n"
-            "Las gaseosas nuevas arrancan con stock 0 (aparecen agotadas): pon las unidades en /admin/ > Productos."
+            "Las gaseosas nuevas arrancan con stock 0 (aparecen agotadas): pon las unidades en /admin/ > Productos.\n"
+            "Las presas de pollo arrancan con stock 0: ponlas desde el panel de cocina o /admin/ > Piezas de pollo.\n"
+            "Lenteja y Frejol arrancan disponibles: avisa desde el panel de cocina si se acaba alguna."
         ))

@@ -7,11 +7,15 @@ from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.db.models import Sum
 from datetime import timedelta, date
+import json
 import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
 
-from .models import Mesa, Producto, Orden, DetalleOrden, RegistroAccion
+from .models import (
+    Mesa, Producto, Orden, DetalleOrden, RegistroAccion, PiezaPollo, TipoMenestra, VarianteProducto,
+    Gasto,
+)
 
 
 # ---------- LOGIN / ROLES ----------
@@ -26,6 +30,11 @@ def es_cocina(user):
 
 def es_admin(user):
     return user.groups.filter(name="Admin").exists() or user.is_superuser
+
+
+# categorias que se pueden vender directo (sin pasar por cocina) cuando la mesa
+# ya esta comiendo y pide algo suelto de mas
+CATEGORIAS_VENTA_DIRECTA = {"acompanamientos", "bebidas", "gaseosas"}
 
 
 def registrar(usuario, texto):
@@ -111,7 +120,8 @@ def entregar_a_cliente(request, orden_id):
 @user_passes_test(es_mesero)
 def menu_mesa(request, mesa_id):
     mesa = get_object_or_404(Mesa, id=mesa_id)
-    orden, _ = Orden.objects.get_or_create(mesa=mesa, estado="abierta")
+    orden, _ = Orden.objects.get_or_create(mesa=mesa, estado="abierta", es_venta_directa=False)
+    orden_directa = Orden.objects.filter(mesa=mesa, estado="abierta", es_venta_directa=True).first()
 
     categoria = request.GET.get("categoria", "combos")
     productos = Producto.objects.filter(categoria=categoria).order_by("nombre")
@@ -125,11 +135,14 @@ def menu_mesa(request, mesa_id):
     contexto = {
         "mesa": mesa,
         "orden": orden,
+        "orden_directa": orden_directa,
         "productos": productos,
         "categoria_activa": categoria,
         "categorias": Producto.CATEGORIAS,
-        "piezas_pollo": Producto.PIEZAS_POLLO,
+        "piezas_pollo": PiezaPollo.objects.all(),
         "acompanamientos_cambio": cambios,
+        "categorias_venta_directa": CATEGORIAS_VENTA_DIRECTA,
+        "menestra_json": json.dumps({t.nombre: t.disponible for t in TipoMenestra.objects.all()}),
     }
     return render(request, "pedidos/menu_mesa.html", contexto)
 
@@ -145,9 +158,11 @@ def agregar_item(request, orden_id, producto_id):
         return JsonResponse({"ok": False, "error": "Producto no disponible"}, status=400)
 
     pieza = request.POST.get("pieza", "").strip()
+    pieza_obj = None
     if producto.requiere_pieza:
-        if pieza not in Producto.PIEZAS_POLLO:
-            return JsonResponse({"ok": False, "error": "Selecciona una pieza"}, status=400)
+        pieza_obj = PiezaPollo.objects.filter(nombre=pieza).first()
+        if pieza_obj is None or pieza_obj.stock <= 0:
+            return JsonResponse({"ok": False, "error": "Selecciona una presa disponible"}, status=400)
     else:
         pieza = ""
 
@@ -159,13 +174,33 @@ def agregar_item(request, orden_id, producto_id):
         if cambio is None or not cambio.esta_disponible():
             return JsonResponse({"ok": False, "error": "Acompañamiento no disponible"}, status=400)
 
+    # acompañamientos incluidos que el cliente no quiere (ej: sin maduro). No cambia el precio.
+    validos = set(producto.lista_opciones_incluidas())
+    sin_pedidos = [s.strip() for s in request.POST.get("sin_acompanamientos", "").split(",") if s.strip()]
+    sin_acompanamientos = ",".join(s for s in sin_pedidos if s in validos)
+
+    # variantes de eleccion unica (ej: Menestra -> Lenteja/Frejol). Si el producto tiene, son obligatorias.
+    grupos_producto = {v.nombre: set(v.lista_opciones()) for v in producto.variantes.all()}
+    elegidas = {}
+    for parte in request.POST.get("variantes", "").split("|"):
+        if ":" in parte:
+            grupo, opcion = parte.split(":", 1)
+            elegidas[grupo.strip()] = opcion.strip()
+    for nombre_grupo, opciones_validas in grupos_producto.items():
+        if elegidas.get(nombre_grupo) not in opciones_validas:
+            return JsonResponse({"ok": False, "error": f"Selecciona {nombre_grupo.lower()}"}, status=400)
+    variantes_elegidas = "|".join(f"{g}:{elegidas[g]}" for g in grupos_producto)
+
     item, creado = DetalleOrden.objects.get_or_create(
-        orden=orden, producto=producto, notas=pieza, acompanamiento=cambio
+        orden=orden, producto=producto, notas=pieza, acompanamiento=cambio,
+        sin_acompanamientos=sin_acompanamientos, variantes_elegidas=variantes_elegidas,
     )
     nueva_cantidad = item.cantidad + 1 if not creado else 1
 
     if producto.controla_stock and nueva_cantidad > producto.stock:
         return JsonResponse({"ok": False, "error": "No hay suficiente stock"}, status=400)
+    if pieza_obj is not None and nueva_cantidad > pieza_obj.stock:
+        return JsonResponse({"ok": False, "error": "No hay suficientes presas de esa"}, status=400)
 
     item.cantidad = nueva_cantidad
     item.save()
@@ -179,7 +214,7 @@ def _volver_al_menu(request, orden, abrir_carrito=False):
     categoria = request.POST.get("categoria", "combos")
     url = f"{reverse('menu_mesa', args=[orden.mesa.id])}?categoria={categoria}"
     if abrir_carrito:
-        url += "&carrito=1"
+        url += "&directo=1" if orden.es_venta_directa else "&carrito=1"
     return url
 
 
@@ -226,13 +261,70 @@ def confirmar_orden(request, orden_id):
         if item.producto.controla_stock:
             item.producto.stock = max(0, item.producto.stock - item.cantidad)
             item.producto.save()
+        if item.producto.requiere_pieza and item.notas:
+            pieza = PiezaPollo.objects.filter(nombre=item.notas).first()
+            if pieza:
+                pieza.stock = max(0, pieza.stock - item.cantidad)
+                pieza.save()
 
     orden.estado = "enviada"
     orden.enviado_a_cocina = timezone.now()
+    orden.para_llevar = request.POST.get("para_llevar") == "1"
     orden.save()
 
-    registrar(request.user, f"Confirmo orden #{orden.id} - Mesa {orden.mesa.numero} - ${orden.total()}")
+    tipo = "para llevar" if orden.para_llevar else "para servir"
+    registrar(request.user, f"Confirmo orden #{orden.id} ({tipo}) - Mesa {orden.mesa.numero} - ${orden.total()}")
     return redirect("elegir_mesa")
+
+
+@login_required
+@user_passes_test(es_mesero)
+@require_POST
+def agregar_item_directo(request, mesa_id, producto_id):
+    """Venta de mostrador: acompañamiento/bebida/gaseosa que se cobra al instante,
+    sin pasar por la pantalla de cocina (mesa que ya esta comiendo y pide algo suelto)."""
+    mesa = get_object_or_404(Mesa, id=mesa_id)
+    producto = get_object_or_404(Producto, id=producto_id)
+
+    if producto.categoria not in CATEGORIAS_VENTA_DIRECTA:
+        return JsonResponse({"ok": False, "error": "Ese producto no se puede vender directo"}, status=400)
+    if not producto.esta_disponible():
+        return JsonResponse({"ok": False, "error": "Producto no disponible"}, status=400)
+
+    orden, _ = Orden.objects.get_or_create(mesa=mesa, estado="abierta", es_venta_directa=True)
+
+    item, creado = DetalleOrden.objects.get_or_create(orden=orden, producto=producto)
+    nueva_cantidad = item.cantidad + 1 if not creado else 1
+
+    if producto.controla_stock and nueva_cantidad > producto.stock:
+        return JsonResponse({"ok": False, "error": "No hay suficiente stock"}, status=400)
+
+    item.cantidad = nueva_cantidad
+    item.save()
+
+    categoria = request.POST.get("categoria", "combos")
+    return redirect(f"{reverse('menu_mesa', args=[mesa.id])}?categoria={categoria}&directo=1")
+
+
+@login_required
+@user_passes_test(es_mesero)
+@require_POST
+def confirmar_venta_directa(request, orden_id):
+    """Cobra la venta directa: se cierra al instante, nunca pasa por cocina."""
+    orden = get_object_or_404(Orden, id=orden_id, estado="abierta", es_venta_directa=True)
+
+    for item in orden.items.all():
+        if item.producto.controla_stock:
+            item.producto.stock = max(0, item.producto.stock - item.cantidad)
+            item.producto.save()
+
+    orden.estado = "cerrada"
+    orden.enviado_a_cocina = timezone.now()
+    orden.save()
+
+    registrar(request.user, f"Venta directa #{orden.id} (sin cocina) - Mesa {orden.mesa.numero} - ${orden.total()}")
+    categoria = request.POST.get("categoria", "combos")
+    return redirect(f"{reverse('menu_mesa', args=[orden.mesa.id])}?categoria={categoria}")
 
 
 # ---------- COCINA ----------
@@ -254,6 +346,8 @@ def panel_cocina(request):
         "ordenes": ordenes,
         "grupos": grupos,
         "temporizadores": Producto.TEMPORIZADORES,
+        "piezas_pollo": PiezaPollo.objects.all(),
+        "tipos_menestra": TipoMenestra.objects.all(),
     })
 
 
@@ -313,12 +407,45 @@ def poner_temporizador(request, producto_id):
     return redirect("panel_cocina")
 
 
+@login_required
+@user_passes_test(es_cocina)
+@require_POST
+def toggle_menestra(request, tipo_id):
+    tipo = get_object_or_404(TipoMenestra, id=tipo_id)
+    tipo.disponible = not tipo.disponible
+    tipo.save()
+    estado_txt = "disponible" if tipo.disponible else "agotada"
+    registrar(request.user, f"Marco menestra de '{tipo.nombre}' como {estado_txt}")
+    return redirect("panel_cocina")
+
+
+@login_required
+@user_passes_test(es_cocina)
+@require_POST
+def actualizar_stock_pieza(request, pieza_id):
+    """El deslizador de presas en cocina guarda cuantas hay disponibles de cada tipo."""
+    pieza = get_object_or_404(PiezaPollo, id=pieza_id)
+    try:
+        cantidad = max(0, int(request.POST.get("cantidad", 0)))
+    except ValueError:
+        return JsonResponse({"ok": False, "error": "Cantidad invalida"}, status=400)
+
+    pieza.stock = cantidad
+    pieza.save()
+    registrar(request.user, f"Actualizo presas de '{pieza.nombre}': {cantidad}")
+    return JsonResponse({"ok": True, "stock": pieza.stock})
+
+
 def disponibilidad_json(request):
     """Lo consulta la tablet del mesero cada pocos segundos: disponibilidad + temporizadores."""
     productos = Producto.objects.all()
     data = {p.id: p.esta_disponible() for p in productos}
     temporizadores = {p.id: p.segundos_restantes() for p in productos if p.segundos_restantes()}
-    return JsonResponse({"disponibilidad": data, "temporizadores": temporizadores})
+    piezas = {p.nombre: p.stock for p in PiezaPollo.objects.all()}
+    menestra = {t.nombre: t.disponible for t in TipoMenestra.objects.all()}
+    return JsonResponse({
+        "disponibilidad": data, "temporizadores": temporizadores, "piezas": piezas, "menestra": menestra,
+    })
 
 
 # ---------- ADMIN: REPORTES ----------
@@ -408,6 +535,20 @@ def _delta(actual, anterior):
     return round((actual - anterior) / anterior * 100)
 
 
+def _resumen_financiero(desde, hasta, ingresos):
+    """Ingresos vs gastos de materia prima cargados a mano, para un periodo dado."""
+    gastos = list(Gasto.objects.filter(fecha__gte=desde, fecha__lte=hasta))
+    total_gastos = float(sum(g.monto for g in gastos))
+    ganancia = ingresos - total_gastos
+    margen = round(ganancia / ingresos * 100) if ingresos else None
+    return {
+        "gastos": gastos,
+        "total_gastos": total_gastos,
+        "ganancia": ganancia,
+        "margen": margen,
+    }
+
+
 @login_required
 @user_passes_test(es_admin)
 def reportes(request):
@@ -482,6 +623,17 @@ def reportes(request):
     # ---- todas las ordenes del periodo ----
     todas = sorted(ordenes, key=lambda o: o.creado, reverse=True)
 
+    # ---- gastos de materia prima vs ingresos, del periodo que se esta viendo ----
+    financiero = _resumen_financiero(desde, hasta, actual["ingresos"])
+
+    # ---- ganancia del mes en curso: fija, no cambia con el selector dia/semana/mes,
+    # para que el dueño siempre pueda ver de ahi cuanto hay para repartir de sueldos ----
+    mes_desde = hoy.replace(day=1)
+    mes_ingresos = _resumen(_ordenes_periodo(mes_desde, hoy))["ingresos"]
+    mes_actual = _resumen_financiero(mes_desde, hoy, mes_ingresos)
+    mes_actual["ingresos"] = mes_ingresos
+    mes_actual["etiqueta"] = f"{MESES[hoy.month - 1]} {hoy.year}"
+
     anterior_ancla, siguiente_ancla = _navegacion(rango, desde, ancla)
     contexto = {
         "rango": rango,
@@ -502,8 +654,51 @@ def reportes(request):
         "desglose": desglose,
         "inventario": inventario,
         "todas": todas,
+        "financiero": financiero,
+        "mes_actual": mes_actual,
+        "categorias_gasto": Gasto.CATEGORIAS,
     }
     return render(request, "pedidos/reportes.html", contexto)
+
+
+@login_required
+@user_passes_test(es_admin)
+@require_POST
+def agregar_gasto(request):
+    fecha = request.POST.get("fecha", "").strip()
+    categoria = request.POST.get("categoria", "otros")
+    descripcion = request.POST.get("descripcion", "").strip()
+    monto = request.POST.get("monto", "").strip()
+
+    try:
+        fecha = date.fromisoformat(fecha)
+    except ValueError:
+        fecha = timezone.localdate()
+    try:
+        monto = round(float(monto), 2)
+    except ValueError:
+        monto = 0
+
+    if descripcion and monto > 0:
+        Gasto.objects.create(
+            fecha=fecha, categoria=categoria, descripcion=descripcion, monto=monto, usuario=request.user,
+        )
+        registrar(request.user, f"Cargo gasto '{descripcion}' (${monto:.2f}) del {fecha:%d/%m/%Y}")
+
+    volver = reverse("reportes") + "?" + request.POST.get("volver", "rango=dia")
+    return redirect(volver)
+
+
+@login_required
+@user_passes_test(es_admin)
+@require_POST
+def eliminar_gasto(request, gasto_id):
+    gasto = get_object_or_404(Gasto, id=gasto_id)
+    registrar(request.user, f"Elimino gasto '{gasto.descripcion}' (${gasto.monto:.2f}) del {gasto.fecha:%d/%m/%Y}")
+    gasto.delete()
+
+    volver = reverse("reportes") + "?" + request.POST.get("volver", "rango=dia")
+    return redirect(volver)
 
 
 @login_required
@@ -613,6 +808,34 @@ def exportar_excel(request):
             celda.number_format = '"$"#,##0.00'
     bordear_filas(ws2, 3)
     ajustar_anchos(ws2, [40, 18, 16])
+
+    # ---- gastos de materia prima vs ingresos, del mismo periodo exportado ----
+    resumen_periodo = _resumen(ordenes)
+    financiero = _resumen_financiero(desde, hasta, resumen_periodo["ingresos"])
+
+    ws3 = wb.create_sheet("Gastos y ganancia")
+    estilizar_encabezado(ws3, ["Fecha", "Categoria", "Descripcion", "Monto"])
+    for g in financiero["gastos"]:
+        ws3.append([g.fecha.strftime("%d/%m/%Y"), g.get_categoria_display(), g.descripcion, float(g.monto)])
+    for fila in ws3.iter_rows(min_row=2, max_row=ws3.max_row, min_col=4, max_col=4):
+        for celda in fila:
+            celda.number_format = '"$"#,##0.00'
+    bordear_filas(ws3, 4)
+    ajustar_anchos(ws3, [14, 18, 40, 14])
+
+    fila = ws3.max_row + 2
+    etiquetas_resumen = [
+        ("Ingresos del periodo", resumen_periodo["ingresos"]),
+        ("Gastos del periodo", financiero["total_gastos"]),
+        ("Ganancia (o perdida)" if financiero["ganancia"] >= 0 else "Perdida", financiero["ganancia"]),
+    ]
+    for i, (etiqueta_fila, valor) in enumerate(etiquetas_resumen):
+        ws3.cell(row=fila + i, column=1, value=etiqueta_fila).font = Font(bold=True)
+        celda_valor = ws3.cell(row=fila + i, column=2, value=valor)
+        celda_valor.number_format = '"$"#,##0.00'
+    if financiero["margen"] is not None:
+        ws3.cell(row=fila + 3, column=1, value="Margen").font = Font(bold=True)
+        ws3.cell(row=fila + 3, column=2, value=f"{financiero['margen']}%")
 
     response = HttpResponse(
         content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"

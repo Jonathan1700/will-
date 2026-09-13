@@ -13,7 +13,7 @@ venv\Scripts\activate          # Windows
 pip install django openpyxl
 
 python manage.py migrate
-python manage.py cargar_datos_ejemplo       # crea 8 mesas y carga el menu real
+python manage.py cargar_datos_ejemplo       # crea 5 mesas y carga el menu real
 python manage.py cargar_menu_brasas         # (solo el menu: combos, pollo, acompañamientos, bebidas, gaseosas)
 python manage.py crear_roles_y_usuarios     # crea los 3 roles + 1 usuario de prueba por rol
 ```
