@@ -45,6 +45,7 @@
                     <td>
                         {{ item.producto.nombre }}
                         {% if item.notas %}<span class="t-nota">{{ item.notas }}</span>{% endif %}
+                        {% if item.despresado %}<span class="t-nota t-cambio">🔪 DESPRESADO</span>{% endif %}
                         {% if item.acompanamiento %}<span class="t-nota t-cambio">sin {{ item.producto.acompanamiento_incluido|lower }} → {{ item.acompanamiento.nombre }}</span>{% endif %}
                         {% if item.sin_acompanamientos %}<span class="t-nota t-cambio">sin {{ item.sin_acompanamientos|lower }}</span>{% endif %}
                         {% for grupo, opcion in item.lista_variantes_elegidas %}<span class="t-nota">{{ grupo }}: {{ opcion }}</span>{% endfor %}

@@ -22,13 +22,17 @@ TIPOS_MENESTRA = ["Lenteja", "Frejol"]
 
 POLLO = [
     dict(nombre="1 Pollo a la brasa", precio=12.99, combo_incluye=INCLUYE_PAPAS,
-         acompanamiento_incluido=INCLUIDO_POLLO, opciones_incluidas=OPCIONES_POLLO),
+         acompanamiento_incluido=INCLUIDO_POLLO, opciones_incluidas=OPCIONES_POLLO,
+         permite_despresado=True),
     dict(nombre="1/2 Pollo a la brasa", precio=6.50, combo_incluye=INCLUYE_PAPAS,
-         acompanamiento_incluido=INCLUIDO_POLLO, opciones_incluidas=OPCIONES_POLLO),
+         acompanamiento_incluido=INCLUIDO_POLLO, opciones_incluidas=OPCIONES_POLLO,
+         permite_despresado=True),
     dict(nombre="1/4 Pollo a la brasa (pechuga)", precio=3.75, combo_incluye=INCLUYE_PAPAS,
-         acompanamiento_incluido=INCLUIDO_POLLO, opciones_incluidas=OPCIONES_POLLO),
+         acompanamiento_incluido=INCLUIDO_POLLO, opciones_incluidas=OPCIONES_POLLO,
+         permite_despresado=True),
     dict(nombre="1/4 Pollo a la brasa (pierna)", precio=3.25, combo_incluye=INCLUYE_PAPAS,
-         acompanamiento_incluido=INCLUIDO_POLLO, opciones_incluidas=OPCIONES_POLLO),
+         acompanamiento_incluido=INCLUIDO_POLLO, opciones_incluidas=OPCIONES_POLLO,
+         permite_despresado=True),
 ]
 
 # los 1/8 van en la pestaña "Combos"

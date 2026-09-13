@@ -19,9 +19,10 @@ class VarianteProductoInline(admin.TabularInline):
 class ProductoAdmin(admin.ModelAdmin):
     list_display = ("nombre", "categoria", "precio", "acompanamiento_incluido", "opciones_incluidas",
                     "precio_cambio", "disponible", "listo_en", "controla_stock", "stock", "es_combo",
-                    "requiere_pieza")
+                    "requiere_pieza", "permite_despresado")
     list_editable = ("disponible", "stock", "precio_cambio")
-    list_filter = ("categoria", "disponible", "controla_stock", "es_combo", "requiere_pieza")
+    list_filter = ("categoria", "disponible", "controla_stock", "es_combo", "requiere_pieza",
+                    "permite_despresado")
     inlines = [VarianteProductoInline]
 
 

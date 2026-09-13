@@ -60,6 +60,9 @@
                         {% if producto.requiere_pieza %}
                         <span class="chip">Elige pieza</span>
                         {% endif %}
+                        {% if producto.permite_despresado %}
+                        <span class="chip">🔪 Despresado opcional</span>
+                        {% endif %}
                         {% if producto.controla_stock %}
                         <span class="chip {% if producto.stock_bajo %}chip-alerta{% endif %}">Stock: {{ producto.stock }}</span>
                         {% endif %}
@@ -78,15 +81,17 @@
                             <form method="post" action="{% url 'agregar_item' orden.id producto.id %}" class="form-agregar">
                                 {% csrf_token %}
                                 <input type="hidden" name="categoria" value="{{ categoria_activa }}">
-                                {% if producto.requiere_pieza or producto.permite_cambio or producto.tiene_opciones_incluidas or producto.tiene_variantes %}
+                                {% if producto.requiere_pieza or producto.permite_cambio or producto.tiene_opciones_incluidas or producto.tiene_variantes or producto.permite_despresado %}
                                 <input type="hidden" name="pieza">
                                 <input type="hidden" name="acompanamiento">
                                 <input type="hidden" name="sin_acompanamientos">
                                 <input type="hidden" name="variantes">
+                                <input type="hidden" name="despresado">
                                 <button type="button" class="btn-add abrir-opciones"
                                         data-nombre="{{ producto.nombre }}"
                                         data-precio="{{ producto.precio|unlocalize }}"
                                         data-requiere-pieza="{% if producto.requiere_pieza %}1{% endif %}"
+                                        data-permite-despresado="{% if producto.permite_despresado %}1{% endif %}"
                                         data-incluido="{{ producto.acompanamiento_incluido }}"
                                         data-opciones-incluidas="{{ producto.opciones_incluidas }}"
                                         data-variantes='{{ producto.variantes_json }}'
@@ -130,6 +135,7 @@
                 <div class="linea-info">
                     <span class="linea-nombre">{{ item.producto.nombre }}</span>
                     {% if item.notas %}<span class="linea-mod">Pieza: {{ item.notas }}</span>{% endif %}
+                    {% if item.despresado %}<span class="linea-mod cambio">🔪 Despresado</span>{% endif %}
                     {% if item.acompanamiento %}
                     <span class="linea-mod cambio">Sin {{ item.producto.acompanamiento_incluido|lower }} · con {{ item.acompanamiento.nombre }}</span>
                     {% endif %}
@@ -282,6 +288,13 @@
                     </div>
                 </section>
 
+                <section id="seccion-despresado" hidden>
+                    <label class="check-llevar">
+                        <input type="checkbox" id="modal-despresado">
+                        <span>🔪 Despresado <small>(cortado en presas, avisa a cocina)</small></span>
+                    </label>
+                </section>
+
                 <section id="seccion-cambio" hidden>
                     <h3 class="sheet-seccion">Acompañamiento</h3>
                     <div class="opciones">
@@ -344,6 +357,8 @@ document.querySelectorAll('.card').forEach(card => {
     const baseEl = document.getElementById('modal-producto-base');
     const totalEl = document.getElementById('modal-total');
     const seccionPieza = document.getElementById('seccion-pieza');
+    const seccionDespresado = document.getElementById('seccion-despresado');
+    const despresadoCheck = document.getElementById('modal-despresado');
     const seccionCambio = document.getElementById('seccion-cambio');
     const seccionQuitar = document.getElementById('seccion-quitar');
     const listaQuitar = document.getElementById('lista-quitar');
@@ -383,6 +398,8 @@ document.querySelectorAll('.card').forEach(card => {
             nombreEl.textContent = btn.dataset.nombre;
             baseEl.textContent = 'Precio base ' + fmt(precioBase);
             seccionPieza.hidden = !requierePieza;
+            seccionDespresado.hidden = btn.dataset.permiteDespresado !== '1';
+            despresadoCheck.checked = false;
             seccionCambio.hidden = !btn.dataset.incluido;
             incluidoSpan.textContent = (btn.dataset.incluido || '').toLowerCase();
 
@@ -468,6 +485,7 @@ document.querySelectorAll('.card').forEach(card => {
         formActivo.querySelector('input[name="sin_acompanamientos"]').value = quitados.join(',');
         formActivo.querySelector('input[name="variantes"]').value =
             Object.entries(variantesElegidas).map(([g, o]) => `${g}:${o}`).join('|');
+        formActivo.querySelector('input[name="despresado"]').value = despresadoCheck.checked ? '1' : '';
         formActivo.requestSubmit();
     });
 

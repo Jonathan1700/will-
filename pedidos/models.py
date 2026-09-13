@@ -52,6 +52,10 @@ class Producto(models.Model):
     # piezas de pollo (1/8, 1/4): el mesero debe elegir pechuga/cadera/muslo/pierna
     requiere_pieza = models.BooleanField(default=False)
 
+    # 1/4, 1/2 y pollo entero: el mesero puede marcar que lo quieren despresado
+    # (cortado en presas) en vez de entero/en su corte normal
+    permite_despresado = models.BooleanField(default=False)
+
     # platos: lo que trae por defecto y que el cliente puede cambiar (ej: "Papas fritas").
     # Si esta vacio, el plato no permite cambiar acompañamiento.
     acompanamiento_incluido = models.CharField(max_length=100, blank=True)
@@ -222,6 +226,9 @@ class DetalleOrden(models.Model):
     # eleccion de cada `producto.variantes`, ej: "Arroz:Moro|Menestra:Frejol"
     variantes_elegidas = models.CharField(max_length=200, blank=True)
 
+    # el cliente pidio el pollo despresado (cortado en presas) en vez de entero
+    despresado = models.BooleanField(default=False)
+
     def __str__(self):
         return f"{self.cantidad}x {self.descripcion()}"
 
@@ -244,6 +251,8 @@ class DetalleOrden(models.Model):
             texto += f" · sin {self.sin_acompanamientos.lower()}"
         for grupo, opcion in self.lista_variantes_elegidas():
             texto += f" · {grupo}: {opcion}"
+        if self.despresado:
+            texto += " · DESPRESADO"
         return texto
 
     def precio_unitario(self):
