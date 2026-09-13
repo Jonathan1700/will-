@@ -37,7 +37,7 @@
     <h2 class="seccion-titulo">Elige una mesa</h2>
     <div class="mesas-grid">
         {% for mesa in mesas %}
-        <a href="{% url 'menu_mesa' mesa.id %}" class="mesa-btn {% if mesa.tiene_orden_abierta %}ocupada{% endif %}">
+        <a href="{% url 'cuentas_mesa' mesa.id %}" class="mesa-btn {% if mesa.tiene_cuenta_abierta %}ocupada{% endif %}">
             {{ mesa.numero }}
         </a>
         {% empty %}

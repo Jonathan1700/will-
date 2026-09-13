@@ -1,7 +1,7 @@
 from django.contrib import admin
 from .models import (
     Mesa, Producto, Orden, DetalleOrden, RegistroAccion, PiezaPollo, VarianteProducto,
-    TipoMenestra, Gasto,
+    TipoMenestra, Gasto, Cuenta,
 )
 
 
@@ -57,6 +57,12 @@ class GastoAdmin(admin.ModelAdmin):
     list_filter = ("categoria", "fecha")
     date_hierarchy = "fecha"
     ordering = ("-fecha", "-creado")
+
+
+@admin.register(Cuenta)
+class CuentaAdmin(admin.ModelAdmin):
+    list_display = ("mesa", "numero", "cerrada", "creado")
+    list_filter = ("cerrada", "mesa")
 
 
 @admin.register(RegistroAccion)

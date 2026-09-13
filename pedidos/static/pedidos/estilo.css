@@ -644,6 +644,123 @@ table.ticket .t-num {
 
 .preset-quitar[hidden] { display: none; }
 
+/* ---- cuentas de una mesa (dividir la cuenta) ---- */
+
+.cuentas-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 14px;
+    margin-bottom: 18px;
+}
+
+.cuenta-card {
+    background: #FFFFFF;
+    border: 2px solid var(--navy);
+    border-radius: 14px;
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.cuenta-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.cuenta-nombre {
+    font-family: 'Anton', sans-serif;
+    font-size: 17px;
+    color: var(--navy);
+}
+
+.cuenta-total {
+    font-family: 'Anton', sans-serif;
+    font-size: 17px;
+    color: var(--navy);
+}
+
+.cuenta-lista {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 12.5px;
+    color: var(--ink-soft);
+    max-height: 160px;
+    overflow-y: auto;
+}
+
+.cuenta-lista li {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 2px 0;
+    border-bottom: 1px dashed var(--line);
+}
+
+.cuenta-lista li:last-child { border-bottom: none; }
+.cuenta-vacia { font-style: italic; }
+
+.cuenta-acciones {
+    display: flex;
+    gap: 8px;
+    margin-top: 4px;
+}
+
+.btn-cuenta-agregar {
+    flex: 1;
+    text-align: center;
+    background: var(--navy);
+    color: var(--cream);
+    font-weight: 700;
+    font-size: 12.5px;
+    text-decoration: none;
+    padding: 10px 12px;
+    border-radius: 10px;
+}
+
+.btn-cuenta-cobrar {
+    flex: 1;
+    border: 2px solid var(--navy);
+    background: #FFFFFF;
+    color: var(--navy);
+    font-family: inherit;
+    font-weight: 700;
+    font-size: 12.5px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    cursor: pointer;
+}
+
+.btn-agregar-cuenta {
+    width: 100%;
+    max-width: 320px;
+    height: 52px;
+    border: 2px dashed var(--navy);
+    background: transparent;
+    color: var(--navy);
+    font-family: inherit;
+    font-weight: 700;
+    font-size: 14px;
+    border-radius: 12px;
+    cursor: pointer;
+    margin-bottom: 24px;
+}
+
+.panel-enviar {
+    background: #FFFFFF;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 18px;
+    max-width: 420px;
+}
+
+.panel-enviar .btn-enviar { margin-top: 12px; }
+
 /* ---- pedidos listos en la tablet del mesero ---- */
 
 .listos-titulo { margin-top: 4px; }
@@ -1041,6 +1158,14 @@ table.ticket .t-num {
 
 .btn-enviar:active { transform: scale(.985); }
 .btn-enviar:disabled { opacity: .4; cursor: not-allowed; box-shadow: none; }
+
+a.btn-enviar-link {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    text-decoration: none;
+}
 
 .check-llevar {
     display: flex;

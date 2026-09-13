@@ -1,0 +1,83 @@
+{% extends "pedidos/base.html" %}
+{% load l10n %}
+{% block titulo %}Mesa {{ mesa.numero }} - Cuentas{% endblock %}
+{% block contenido %}
+<header class="top">
+    <a href="{% url 'elegir_mesa' %}" class="titulo">Brasas</a>
+    <span class="mesa">Mesa {{ mesa.numero }}</span>
+    <span class="top-acciones">
+        <button type="button" class="top-fullscreen" id="btn-fullscreen" aria-label="Pantalla completa">⛶</button>
+        <a href="{% url 'logout' %}" class="top-salir">Salir</a>
+    </span>
+</header>
+
+<div class="app">
+    <h2 class="seccion-titulo">Cuentas de la Mesa {{ mesa.numero }}</h2>
+
+    <div class="cuentas-grid">
+        {% for c in cuentas %}
+        <div class="cuenta-card">
+            <div class="cuenta-head">
+                <span class="cuenta-nombre">Cuenta {{ c.cuenta.numero }}</span>
+                <span class="cuenta-total">${{ c.total|floatformat:2 }}</span>
+            </div>
+            <ul class="cuenta-lista">
+                {% for item in c.items %}
+                <li>
+                    <span>{{ item.cantidad }}x {{ item.producto.nombre }}</span>
+                    <em>${{ item.subtotal|floatformat:2 }}</em>
+                </li>
+                {% empty %}
+                <li class="cuenta-vacia">Sin productos todavia.</li>
+                {% endfor %}
+            </ul>
+            <div class="cuenta-acciones">
+                <a href="{% url 'menu_mesa' mesa.id %}?cuenta={{ c.cuenta.numero }}" class="btn-cuenta-agregar">Ver / Agregar</a>
+                <form method="post" action="{% url 'cobrar_cuenta' c.cuenta.id %}" onsubmit="return confirm('¿Ya se cobro esta cuenta?');">
+                    {% csrf_token %}
+                    <button type="submit" class="btn-cuenta-cobrar">Cobrar</button>
+                </form>
+            </div>
+        </div>
+        {% empty %}
+        <p class="vacio">Esta mesa no tiene cuentas abiertas todavia. Agrega la primera con el boton de abajo.</p>
+        {% endfor %}
+    </div>
+
+    <form method="post" action="{% url 'crear_cuenta' mesa.id %}">
+        {% csrf_token %}
+        <button type="submit" class="btn-agregar-cuenta">+ Agregar cuenta</button>
+    </form>
+
+    {% if orden and orden.items.exists %}
+    <section class="panel-enviar">
+        <h3 class="seccion-titulo">Enviar pedido a cocina</h3>
+        <p class="panel-sub">Se envia junto todo lo que se agrego en todas las cuentas de esta mesa.</p>
+        <form method="post" action="{% url 'confirmar_orden' orden.id %}">
+            {% csrf_token %}
+            <label class="check-llevar">
+                <input type="checkbox" name="para_llevar" value="1" id="chk-para-llevar"
+                       data-unidades="{{ orden.unidades_con_envase }}">
+                <span>Para llevar <small>(+${{ orden.RECARGO_PARA_LLEVAR }} por plato)</small></span>
+            </label>
+            <button class="btn-enviar" id="btn-enviar-total">Enviar todo a cocina · ${{ orden.total|floatformat:2 }}</button>
+        </form>
+    </section>
+    {% endif %}
+</div>
+
+<script>
+// "Para llevar": suma el recargo (por cada plato de pollo/combos) al total del boton
+(() => {
+    const chk = document.getElementById('chk-para-llevar');
+    const btn = document.getElementById('btn-enviar-total');
+    if (!chk || !btn) return;
+    const base = {{ orden.total|unlocalize }};
+    const recargo = {{ orden.RECARGO_PARA_LLEVAR|unlocalize }} * (parseInt(chk.dataset.unidades, 10) || 0);
+    const fmt = n => '$' + n.toFixed(2);
+    chk.addEventListener('change', () => {
+        btn.textContent = `Enviar todo a cocina · ${fmt(base + (chk.checked ? recargo : 0))}`;
+    });
+})();
+</script>
+{% endblock %}

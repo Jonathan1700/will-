@@ -4,7 +4,7 @@
 {% block contenido %}
 <header class="top">
     <a href="{% url 'elegir_mesa' %}" class="titulo">Brasas</a>
-    <span class="mesa">Mesa {{ mesa.numero }}</span>
+    <a href="{% url 'cuentas_mesa' mesa.id %}" class="mesa" style="text-decoration:none;">Mesa {{ mesa.numero }} · Cuenta {{ cuenta_activa }}</a>
     <span class="top-acciones">
         <button type="button" class="top-fullscreen" id="btn-fullscreen" aria-label="Pantalla completa">⛶</button>
         <a href="{% url 'logout' %}" class="top-salir">Salir</a>
@@ -16,7 +16,7 @@
     {# ---- rail de categorias (izquierda en tablet horizontal, fila arriba en vertical) ---- #}
     <nav class="rail" aria-label="Categorias">
         {% for valor, nombre in categorias %}
-        <a href="?categoria={{ valor }}" class="rail-item {% if valor == categoria_activa %}activo{% endif %}">
+        <a href="?categoria={{ valor }}&cuenta={{ cuenta_activa }}" class="rail-item {% if valor == categoria_activa %}activo{% endif %}">
             <span class="rail-icono" aria-hidden="true">{% if valor == 'combos' %}🍽️{% elif valor == 'pollo' %}🍗{% elif valor == 'acompanamientos' %}🍚{% elif valor == 'bebidas' %}🧃{% else %}🥤{% endif %}</span>
             <span class="rail-texto">{% if valor == "acompanamientos" %}Acompaña&shy;mientos{% else %}{{ nombre }}{% endif %}</span>
         </a>
@@ -78,6 +78,7 @@
                             <form method="post" action="{% url 'agregar_item' orden.id producto.id %}" class="form-agregar">
                                 {% csrf_token %}
                                 <input type="hidden" name="categoria" value="{{ categoria_activa }}">
+                                <input type="hidden" name="cuenta" value="{{ cuenta_activa }}">
                                 {% if producto.requiere_pieza or producto.permite_cambio or producto.tiene_opciones_incluidas or producto.tiene_variantes %}
                                 <input type="hidden" name="pieza">
                                 <input type="hidden" name="acompanamiento">
@@ -117,13 +118,13 @@
         <div class="pedido-head">
             <div>
                 <p class="pedido-titulo">Tu pedido</p>
-                <p class="pedido-sub">Mesa {{ mesa.numero }} · {{ orden.items.count }} item{{ orden.items.count|pluralize }}</p>
+                <p class="pedido-sub">Mesa {{ mesa.numero }} · Cuenta {{ cuenta_activa }} · {{ items_cuenta|length }} item{{ items_cuenta|length|pluralize }}</p>
             </div>
             <button type="button" class="pedido-cerrar" id="pedido-cerrar" aria-label="Cerrar">✕</button>
         </div>
 
         <div class="pedido-lineas">
-            {% for item in orden.items.all %}
+            {% for item in items_cuenta %}
             <div class="linea">
                 <label class="linea-check" aria-label="Seleccionar">
                     <input type="checkbox" name="item_ids" value="{{ item.id }}" form="form-eliminar">
@@ -151,6 +152,7 @@
             <form method="post" action="{% url 'cambiar_cantidad' orden.id item.id %}" id="form-cant-{{ item.id }}">
                 {% csrf_token %}
                 <input type="hidden" name="categoria" value="{{ categoria_activa }}">
+                <input type="hidden" name="cuenta" value="{{ cuenta_activa }}">
             </form>
             {% empty %}
             <div class="pedido-vacio">
@@ -161,34 +163,27 @@
         </div>
 
         <div class="pedido-foot">
-            {% if orden.items.count %}
+            {% if items_cuenta %}
             <form method="post" action="{% url 'eliminar_items' orden.id %}" id="form-eliminar">
                 {% csrf_token %}
                 <input type="hidden" name="categoria" value="{{ categoria_activa }}">
+                <input type="hidden" name="cuenta" value="{{ cuenta_activa }}">
                 <button type="submit" class="btn-eliminar" id="btn-eliminar" hidden>Eliminar seleccionados</button>
             </form>
             {% endif %}
             <div class="pedido-total">
-                <span>Total</span>
-                <strong id="pedido-total-monto">${{ orden.total }}</strong>
+                <span>Total de esta cuenta</span>
+                <strong id="pedido-total-monto">${{ total_cuenta|floatformat:2 }}</strong>
             </div>
-            <form method="post" action="{% url 'confirmar_orden' orden.id %}">
-                {% csrf_token %}
-                <label class="check-llevar">
-                    <input type="checkbox" name="para_llevar" value="1" id="chk-para-llevar"
-                           data-unidades="{{ orden.unidades_con_envase }}">
-                    <span>Para llevar <small>(+${{ orden.RECARGO_PARA_LLEVAR }} por plato)</small></span>
-                </label>
-                <button class="btn-enviar" {% if orden.items.count == 0 %}disabled{% endif %}>Enviar a cocina</button>
-            </form>
+            <a href="{% url 'cuentas_mesa' mesa.id %}" class="btn-enviar btn-enviar-link">Volver a cuentas / enviar a cocina</a>
         </div>
     </aside>
 
     {# barra flotante (solo pantallas angostas) que abre la hoja del pedido #}
     <button type="button" class="pedido-bar" id="pedido-abrir">
-        <span class="pedido-bar-n">{{ orden.items.count }}</span>
+        <span class="pedido-bar-n">{{ items_cuenta|length }}</span>
         <span class="pedido-bar-txt">Ver mi pedido</span>
-        <strong>${{ orden.total }}</strong>
+        <strong>${{ total_cuenta|floatformat:2 }}</strong>
     </button>
     <div class="pedido-backdrop" id="pedido-backdrop" hidden></div>
 
@@ -533,18 +528,6 @@ document.querySelectorAll('.card').forEach(card => {
     backdrop.addEventListener('click', () => abrir(false));
     // despues de agregar/editar un item directo el servidor vuelve con ?directo=1
     if (new URLSearchParams(location.search).get('directo') === '1') abrir(true);
-})();
-
-// "Para llevar": suma el recargo (por cada plato de pollo/combos) al total que se ve
-(() => {
-    const chk = document.getElementById('chk-para-llevar');
-    const montoEl = document.getElementById('pedido-total-monto');
-    if (!chk || !montoEl) return;
-    const base = parseFloat(montoEl.textContent.replace(/[^0-9.,]/g, '').replace(',', '.')) || 0;
-    const recargo = {{ orden.RECARGO_PARA_LLEVAR|unlocalize }} * (parseInt(chk.dataset.unidades, 10) || 0);
-    chk.addEventListener('change', () => {
-        montoEl.textContent = fmt(base + (chk.checked ? recargo : 0));
-    });
 })();
 
 // Disponibilidad y temporizadores de cocina: se consulta cada 2.5 s para que lo que

@@ -11,8 +11,8 @@ class Mesa(models.Model):
     def __str__(self):
         return f"Mesa {self.numero}"
 
-    def tiene_orden_abierta(self):
-        return self.orden_set.filter(estado="abierta", es_venta_directa=False).exists()
+    def tiene_cuenta_abierta(self):
+        return self.cuentas.filter(cerrada=False).exists()
 
 
 class Producto(models.Model):
@@ -157,6 +157,31 @@ class VarianteProducto(models.Model):
         return [o.strip() for o in self.opciones.split(",") if o.strip()]
 
 
+class Cuenta(models.Model):
+    """Una de las cuentas en las que se puede dividir una mesa (ej: 3 personas piden
+    junto pero pagan separado). Cocina no la ve: solo separa como se cobra."""
+    mesa = models.ForeignKey(Mesa, related_name="cuentas", on_delete=models.CASCADE)
+    numero = models.PositiveIntegerField()
+    cerrada = models.BooleanField(default=False)
+    creado = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        ordering = ["numero"]
+        unique_together = [("mesa", "numero")]
+
+    def __str__(self):
+        return f"Mesa {self.mesa.numero} - Cuenta {self.numero}"
+
+    def items(self):
+        """Items de esta cuenta en toda la mesa (pueden venir de varias rondas/ordenes)."""
+        return DetalleOrden.objects.filter(
+            orden__mesa=self.mesa, orden__es_venta_directa=False, cuenta=self.numero,
+        ).select_related("producto", "acompanamiento")
+
+    def total(self):
+        return sum(item.subtotal() for item in self.items())
+
+
 class Orden(models.Model):
     ESTADOS = [
         ("abierta", "Abierta"),
@@ -224,6 +249,10 @@ class DetalleOrden(models.Model):
 
     # pollo 1/4, 1/2 o entero: cliente quiere el pollo cortado en piezas antes de servir
     despresado = models.BooleanField(default=False)
+
+    # a cual cuenta de la mesa pertenece este item (para dividir la cuenta). No afecta a
+    # cocina: el ticket sigue mostrando todos los items de la orden juntos, como siempre.
+    cuenta = models.PositiveIntegerField(default=1)
 
     def __str__(self):
         return f"{self.cantidad}x {self.descripcion()}"

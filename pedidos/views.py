@@ -5,7 +5,7 @@ from django.views.decorators.http import require_POST
 from django.utils import timezone
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required, user_passes_test
-from django.db.models import Sum
+from django.db.models import Sum, Max
 from datetime import timedelta, date
 import json
 import openpyxl
@@ -14,7 +14,7 @@ from openpyxl.utils import get_column_letter
 
 from .models import (
     Mesa, Producto, Orden, DetalleOrden, RegistroAccion, PiezaPollo, TipoMenestra, VarianteProducto,
-    Gasto,
+    Gasto, Cuenta,
 )
 
 
@@ -97,6 +97,52 @@ def elegir_mesa(request):
     })
 
 
+@login_required
+@user_passes_test(es_mesero)
+def cuentas_mesa(request, mesa_id):
+    """Cuentas en las que esta dividida una mesa (ej: 3 personas piden junto y pagan
+    separado). Cocina no ve nada de esto: el ticket sigue llegando junto, como siempre."""
+    mesa = get_object_or_404(Mesa, id=mesa_id)
+    cuentas = []
+    for cuenta in mesa.cuentas.filter(cerrada=False):
+        items = list(cuenta.items())
+        cuentas.append({
+            "cuenta": cuenta,
+            "items": items,
+            "total": sum(i.subtotal() for i in items),
+        })
+
+    orden = Orden.objects.filter(mesa=mesa, estado="abierta", es_venta_directa=False).first()
+
+    return render(request, "pedidos/cuentas_mesa.html", {
+        "mesa": mesa,
+        "cuentas": cuentas,
+        "orden": orden,
+    })
+
+
+@login_required
+@user_passes_test(es_mesero)
+@require_POST
+def crear_cuenta(request, mesa_id):
+    mesa = get_object_or_404(Mesa, id=mesa_id)
+    siguiente = (mesa.cuentas.aggregate(m=Max("numero"))["m"] or 0) + 1
+    Cuenta.objects.create(mesa=mesa, numero=siguiente)
+    registrar(request.user, f"Abrio cuenta {siguiente} - Mesa {mesa.numero}")
+    return redirect("cuentas_mesa", mesa_id=mesa.id)
+
+
+@login_required
+@user_passes_test(es_mesero)
+@require_POST
+def cobrar_cuenta(request, cuenta_id):
+    cuenta = get_object_or_404(Cuenta, id=cuenta_id, cerrada=False)
+    cuenta.cerrada = True
+    cuenta.save()
+    registrar(request.user, f"Cobro cuenta {cuenta.numero} - Mesa {cuenta.mesa.numero}")
+    return redirect("cuentas_mesa", mesa_id=cuenta.mesa_id)
+
+
 def ordenes_listas_json(request):
     """Pedidos que cocina ya marco como listos, para avisar en la tablet del mesero."""
     ordenes = Orden.objects.filter(estado="entregada").order_by("enviado_a_cocina")
@@ -123,6 +169,15 @@ def menu_mesa(request, mesa_id):
     orden, _ = Orden.objects.get_or_create(mesa=mesa, estado="abierta", es_venta_directa=False)
     orden_directa = Orden.objects.filter(mesa=mesa, estado="abierta", es_venta_directa=True).first()
 
+    # cuenta que el mesero esta viendo/editando (division de la mesa). Cocina no la ve:
+    # todos los items de la orden, sean de la cuenta que sean, van juntos en un solo ticket.
+    try:
+        cuenta_activa = int(request.GET.get("cuenta", 1))
+    except ValueError:
+        cuenta_activa = 1
+    items_cuenta = list(orden.items.filter(cuenta=cuenta_activa).select_related("producto", "acompanamiento"))
+    total_cuenta = sum(item.subtotal() for item in items_cuenta)
+
     categoria = request.GET.get("categoria", "combos")
     productos = Producto.objects.filter(categoria=categoria).order_by("nombre")
 
@@ -136,6 +191,9 @@ def menu_mesa(request, mesa_id):
         "mesa": mesa,
         "orden": orden,
         "orden_directa": orden_directa,
+        "cuenta_activa": cuenta_activa,
+        "items_cuenta": items_cuenta,
+        "total_cuenta": total_cuenta,
         "productos": productos,
         "categoria_activa": categoria,
         "categorias": Producto.CATEGORIAS,
@@ -194,10 +252,12 @@ def agregar_item(request, orden_id, producto_id):
     # despresado: solo aplica a pollo 1/4, 1/2 o entero (no a los 1/8 de combos, que ya son una presa)
     despresado = producto.categoria == "pollo" and request.POST.get("despresado") == "1"
 
+    cuenta = _leer_cuenta(request)
+
     item, creado = DetalleOrden.objects.get_or_create(
         orden=orden, producto=producto, notas=pieza, acompanamiento=cambio,
         sin_acompanamientos=sin_acompanamientos, variantes_elegidas=variantes_elegidas,
-        despresado=despresado,
+        despresado=despresado, cuenta=cuenta,
     )
     nueva_cantidad = item.cantidad + 1 if not creado else 1
 
@@ -210,13 +270,21 @@ def agregar_item(request, orden_id, producto_id):
     item.save()
 
     categoria = request.POST.get("categoria", "combos")
-    return redirect(f"{reverse('menu_mesa', args=[orden.mesa.id])}?categoria={categoria}")
+    return redirect(f"{reverse('menu_mesa', args=[orden.mesa.id])}?categoria={categoria}&cuenta={cuenta}")
+
+
+def _leer_cuenta(request):
+    """Cuenta activa (division de la mesa) que llega en el form. 1 si no se manda."""
+    try:
+        return int(request.POST.get("cuenta", 1))
+    except ValueError:
+        return 1
 
 
 def _volver_al_menu(request, orden, abrir_carrito=False):
     """URL del menu de la mesa conservando la pestaña activa (y el detalle abierto si se pide)."""
     categoria = request.POST.get("categoria", "combos")
-    url = f"{reverse('menu_mesa', args=[orden.mesa.id])}?categoria={categoria}"
+    url = f"{reverse('menu_mesa', args=[orden.mesa.id])}?categoria={categoria}&cuenta={_leer_cuenta(request)}"
     if abrir_carrito:
         url += "&directo=1" if orden.es_venta_directa else "&carrito=1"
     return url
