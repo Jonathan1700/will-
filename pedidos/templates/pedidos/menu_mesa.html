@@ -83,10 +83,12 @@
                                 <input type="hidden" name="acompanamiento">
                                 <input type="hidden" name="sin_acompanamientos">
                                 <input type="hidden" name="variantes">
+                                <input type="hidden" name="despresado">
                                 <button type="button" class="btn-add abrir-opciones"
                                         data-nombre="{{ producto.nombre }}"
                                         data-precio="{{ producto.precio|unlocalize }}"
                                         data-requiere-pieza="{% if producto.requiere_pieza %}1{% endif %}"
+                                        data-despresado="{% if producto.categoria == 'pollo' %}1{% endif %}"
                                         data-incluido="{{ producto.acompanamiento_incluido }}"
                                         data-opciones-incluidas="{{ producto.opciones_incluidas }}"
                                         data-variantes='{{ producto.variantes_json }}'
@@ -133,6 +135,7 @@
                     {% if item.acompanamiento %}
                     <span class="linea-mod cambio">Sin {{ item.producto.acompanamiento_incluido|lower }} · con {{ item.acompanamiento.nombre }}</span>
                     {% endif %}
+                    {% if item.despresado %}<span class="linea-mod cambio">Despresado</span>{% endif %}
                     <span class="linea-precio">${{ item.subtotal }}</span>
                 </div>
                 <div class="stepper">
@@ -282,6 +285,13 @@
                     </div>
                 </section>
 
+                <section id="seccion-despresado" hidden>
+                    <button type="button" class="opcion" id="btn-despresado">
+                        <span class="opcion-nombre">Despresado <span class="sheet-seccion-nota">cortar el pollo en piezas</span></span>
+                        <span class="opcion-check" aria-hidden="true"></span>
+                    </button>
+                </section>
+
                 <section id="seccion-cambio" hidden>
                     <h3 class="sheet-seccion">Acompañamiento</h3>
                     <div class="opciones">
@@ -351,7 +361,10 @@ document.querySelectorAll('.card').forEach(card => {
     const gruposVariantes = document.getElementById('grupos-variantes');
     const incluidoSpan = document.getElementById('modal-incluido');
     const btnAgregar = document.getElementById('modal-agregar');
+    const seccionDespresado = document.getElementById('seccion-despresado');
+    const btnDespresado = document.getElementById('btn-despresado');
     let formActivo = null, requierePieza = false, precioBase = 0, pieza = '', cambioId = '', extra = 0;
+    let despresado = false;
     let quitados = [];              // acompañamientos incluidos que el cliente NO quiere
     let gruposRequeridos = [];      // nombres de los grupos de variante (ej: ['Menestra'])
     let variantesElegidas = {};     // grupo -> opcion elegida
@@ -378,11 +391,13 @@ document.querySelectorAll('.card').forEach(card => {
             formActivo = btn.closest('form');
             requierePieza = btn.dataset.requierePieza === '1';
             precioBase = parseFloat(btn.dataset.precio) || 0;
-            pieza = ''; cambioId = ''; extra = 0;
+            pieza = ''; cambioId = ''; extra = 0; despresado = false;
 
             nombreEl.textContent = btn.dataset.nombre;
             baseEl.textContent = 'Precio base ' + fmt(precioBase);
             seccionPieza.hidden = !requierePieza;
+            seccionDespresado.hidden = btn.dataset.despresado !== '1';
+            btnDespresado.classList.remove('seleccionado');
             seccionCambio.hidden = !btn.dataset.incluido;
             incluidoSpan.textContent = (btn.dataset.incluido || '').toLowerCase();
 
@@ -454,6 +469,11 @@ document.querySelectorAll('.card').forEach(card => {
         refrescar();
     }));
 
+    btnDespresado.addEventListener('click', () => {
+        despresado = !despresado;
+        btnDespresado.classList.toggle('seleccionado', despresado);
+    });
+
     modal.querySelectorAll('.cambio-btn').forEach(btn => btn.addEventListener('click', () => {
         cambioId = btn.dataset.id;
         extra = parseFloat(btn.dataset.extra) || 0;
@@ -468,6 +488,7 @@ document.querySelectorAll('.card').forEach(card => {
         formActivo.querySelector('input[name="sin_acompanamientos"]').value = quitados.join(',');
         formActivo.querySelector('input[name="variantes"]').value =
             Object.entries(variantesElegidas).map(([g, o]) => `${g}:${o}`).join('|');
+        formActivo.querySelector('input[name="despresado"]').value = despresado ? '1' : '';
         formActivo.requestSubmit();
     });
 

@@ -222,6 +222,9 @@ class DetalleOrden(models.Model):
     # eleccion de cada `producto.variantes`, ej: "Arroz:Moro|Menestra:Frejol"
     variantes_elegidas = models.CharField(max_length=200, blank=True)
 
+    # pollo 1/4, 1/2 o entero: cliente quiere el pollo cortado en piezas antes de servir
+    despresado = models.BooleanField(default=False)
+
     def __str__(self):
         return f"{self.cantidad}x {self.descripcion()}"
 
@@ -244,6 +247,8 @@ class DetalleOrden(models.Model):
             texto += f" · sin {self.sin_acompanamientos.lower()}"
         for grupo, opcion in self.lista_variantes_elegidas():
             texto += f" · {grupo}: {opcion}"
+        if self.despresado:
+            texto += " · despresado"
         return texto
 
     def precio_unitario(self):

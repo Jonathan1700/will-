@@ -191,9 +191,13 @@ def agregar_item(request, orden_id, producto_id):
             return JsonResponse({"ok": False, "error": f"Selecciona {nombre_grupo.lower()}"}, status=400)
     variantes_elegidas = "|".join(f"{g}:{elegidas[g]}" for g in grupos_producto)
 
+    # despresado: solo aplica a pollo 1/4, 1/2 o entero (no a los 1/8 de combos, que ya son una presa)
+    despresado = producto.categoria == "pollo" and request.POST.get("despresado") == "1"
+
     item, creado = DetalleOrden.objects.get_or_create(
         orden=orden, producto=producto, notas=pieza, acompanamiento=cambio,
         sin_acompanamientos=sin_acompanamientos, variantes_elegidas=variantes_elegidas,
+        despresado=despresado,
     )
     nueva_cantidad = item.cantidad + 1 if not creado else 1
 

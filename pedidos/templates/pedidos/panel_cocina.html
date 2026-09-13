@@ -48,6 +48,7 @@
                         {% if item.acompanamiento %}<span class="t-nota t-cambio">sin {{ item.producto.acompanamiento_incluido|lower }} → {{ item.acompanamiento.nombre }}</span>{% endif %}
                         {% if item.sin_acompanamientos %}<span class="t-nota t-cambio">sin {{ item.sin_acompanamientos|lower }}</span>{% endif %}
                         {% for grupo, opcion in item.lista_variantes_elegidas %}<span class="t-nota">{{ grupo }}: {{ opcion }}</span>{% endfor %}
+                        {% if item.despresado %}<span class="t-nota t-cambio">Despresado</span>{% endif %}
                     </td>
                     <td class="t-num">${{ item.precio_unitario }}</td>
                     <td class="t-num">${{ item.subtotal }}</td>
