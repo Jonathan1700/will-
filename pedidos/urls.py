@@ -12,6 +12,7 @@ urlpatterns = [
     path("mesa/<int:mesa_id>/cuentas/", views.cuentas_mesa, name="cuentas_mesa"),
     path("mesa/<int:mesa_id>/cuentas/nueva/", views.crear_cuenta, name="crear_cuenta"),
     path("cuenta/<int:cuenta_id>/cobrar/", views.cobrar_cuenta, name="cobrar_cuenta"),
+    path("cuenta/<int:cuenta_id>/eliminar/", views.eliminar_cuenta, name="eliminar_cuenta"),
     path("mesa/<int:mesa_id>/", views.menu_mesa, name="menu_mesa"),
     path("orden/<int:orden_id>/agregar/<int:producto_id>/", views.agregar_item, name="agregar_item"),
     path("orden/<int:orden_id>/item/<int:item_id>/cantidad/", views.cambiar_cantidad, name="cambiar_cantidad"),

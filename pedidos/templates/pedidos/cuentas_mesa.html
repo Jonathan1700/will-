@@ -37,6 +37,10 @@
                     {% csrf_token %}
                     <button type="submit" class="btn-cuenta-cobrar">Cobrar</button>
                 </form>
+                <form method="post" action="{% url 'eliminar_cuenta' c.cuenta.id %}" class="form-eliminar-cuenta" data-vacia="{% if c.items %}0{% else %}1{% endif %}">
+                    {% csrf_token %}
+                    <button type="submit" class="btn-cuenta-eliminar">Eliminar</button>
+                </form>
             </div>
         </div>
         {% empty %}
@@ -79,5 +83,17 @@
         btn.textContent = `Enviar todo a cocina · ${fmt(base + (chk.checked ? recargo : 0))}`;
     });
 })();
+
+// Eliminar cuenta: solo se puede si esta vacia (si no, se avisa y no se manda el form)
+document.querySelectorAll('.form-eliminar-cuenta').forEach(form => {
+    form.addEventListener('submit', e => {
+        if (form.dataset.vacia !== '1') {
+            e.preventDefault();
+            alert('Esta cuenta ya tiene productos: cobrala, o saca los productos desde "Ver / Agregar" antes de eliminarla.');
+        } else if (!confirm('¿Eliminar esta cuenta?')) {
+            e.preventDefault();
+        }
+    });
+});
 </script>
 {% endblock %}

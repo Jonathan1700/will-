@@ -143,6 +143,20 @@ def cobrar_cuenta(request, cuenta_id):
     return redirect("cuentas_mesa", mesa_id=cuenta.mesa_id)
 
 
+@login_required
+@user_passes_test(es_mesero)
+@require_POST
+def eliminar_cuenta(request, cuenta_id):
+    """Borra una cuenta creada de mas, ej. por error. Solo si esta vacia (si ya tiene
+    productos, hay que cobrarla o sacar los items desde el menu antes de borrarla)."""
+    cuenta = get_object_or_404(Cuenta, id=cuenta_id, cerrada=False)
+    mesa_id = cuenta.mesa_id
+    if not cuenta.items().exists():
+        registrar(request.user, f"Elimino cuenta {cuenta.numero} - Mesa {cuenta.mesa.numero}")
+        cuenta.delete()
+    return redirect("cuentas_mesa", mesa_id=mesa_id)
+
+
 def ordenes_listas_json(request):
     """Pedidos que cocina ya marco como listos, para avisar en la tablet del mesero."""
     ordenes = Orden.objects.filter(estado="entregada").order_by("enviado_a_cocina")
