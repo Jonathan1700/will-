@@ -52,7 +52,9 @@ INSTALLED_APPS = [
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
+    'cloudinary_storage',
     'django.contrib.staticfiles',
+    'cloudinary',
     'pedidos',
 ]
 
@@ -146,11 +148,18 @@ STATIC_URL = 'static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 # Fotos de productos subidas desde /admin/
-# Nota: en Vercel el filesystem es de solo lectura salvo /tmp, asi que las fotos
-# que ya estan en el repo se sirven bien, pero subir una foto nueva desde /admin/
-# en produccion NO persiste (se pierde en el siguiente deploy o cold start).
+# En Vercel el filesystem es de solo lectura salvo /tmp, asi que las fotos no se pueden
+# guardar ahi: si CLOUDINARY_CLOUD_NAME esta seteado, se suben a Cloudinary en su lugar.
 MEDIA_URL = 'media/'
 MEDIA_ROOT = BASE_DIR / 'media'
+
+CLOUDINARY_STORAGE = {
+    'CLOUD_NAME': os.environ.get('CLOUDINARY_CLOUD_NAME', ''),
+    'API_KEY': os.environ.get('CLOUDINARY_API_KEY', ''),
+    'API_SECRET': os.environ.get('CLOUDINARY_API_SECRET', ''),
+}
+if CLOUDINARY_STORAGE['CLOUD_NAME']:
+    DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
 
 
 # Email
