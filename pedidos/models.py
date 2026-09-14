@@ -192,8 +192,9 @@ class Orden(models.Model):
     ]
 
     RECARGO_PARA_LLEVAR = Decimal("0.25")
-    # el envase se cobra por cada plato principal (pollo/combos), no por bebidas ni acompañamientos sueltos
-    CATEGORIAS_CON_ENVASE = ("pollo", "combos")
+    # el envase se cobra por cada plato principal (pollo/combos) y por cada acompañamiento;
+    # las bebidas y gaseosas no usan envase del local
+    CATEGORIAS_CON_ENVASE = ("pollo", "combos", "acompanamientos")
 
     mesa = models.ForeignKey(Mesa, on_delete=models.CASCADE)
     estado = models.CharField(max_length=20, choices=ESTADOS, default="abierta")
@@ -211,7 +212,7 @@ class Orden(models.Model):
         return f"Orden #{self.id} - Mesa {self.mesa.numero}"
 
     def unidades_con_envase(self):
-        """Cuantos platos (pollo/combos) hay en el pedido: cada uno necesita su envase."""
+        """Cuantos platos (pollo/combos) y acompañamientos hay en el pedido: cada uno necesita su envase."""
         return sum(
             item.cantidad for item in self.items.all()
             if item.producto.categoria in self.CATEGORIAS_CON_ENVASE

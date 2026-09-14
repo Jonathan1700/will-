@@ -319,8 +319,8 @@ class ParaLlevarTest(TestCase):
         self.assertEqual(orden.items.get(producto=pollo).cantidad, 2)
         self.assertEqual(orden.total(), Decimal("3.75") * 2 + Decimal("0.25") * 2)
 
-    def test_para_llevar_no_recarga_bebidas_ni_acompanamientos_sueltos(self):
-        """El envase es por plato (pollo/combos); una bebida sola no suma recargo."""
+    def test_para_llevar_no_recarga_bebidas(self):
+        """El envase no aplica a bebidas/gaseosas: una bebida sola no suma recargo."""
         bebida = Producto.objects.create(
             nombre="Naranja", precio=Decimal("1.50"), categoria="bebidas"
         )
@@ -331,3 +331,35 @@ class ParaLlevarTest(TestCase):
         orden.refresh_from_db()
         self.assertTrue(orden.para_llevar)
         self.assertEqual(orden.total(), Decimal("1.50"))
+
+    def test_para_llevar_recarga_cada_acompanamiento(self):
+        """3 acompañamientos para llevar: se cobra el envase de 25 centavos por cada uno."""
+        acompanamiento = Producto.objects.create(
+            nombre="Maduro", precio=Decimal("1.75"), categoria="acompanamientos"
+        )
+        orden = self._orden_abierta()
+        for _ in range(3):
+            self.client.post(reverse("agregar_item", args=[orden.id, acompanamiento.id]))
+        self.client.post(reverse("confirmar_orden", args=[orden.id]), {"para_llevar": "1"})
+
+        orden.refresh_from_db()
+        self.assertEqual(orden.items.get(producto=acompanamiento).cantidad, 3)
+        self.assertEqual(
+            orden.total(), Decimal("1.75") * 3 + Decimal("0.25") * 3
+        )
+
+    def test_para_llevar_recarga_pollo_y_acompanamientos(self):
+        """Un pollo mas un acompañamiento juntos: cada uno lleva su propio envase."""
+        pollo = Producto.objects.create(
+            nombre="1/4 Pollo a la brasa", precio=Decimal("3.75"), categoria="pollo"
+        )
+        acompanamiento = Producto.objects.create(
+            nombre="Patacones", precio=Decimal("1.75"), categoria="acompanamientos"
+        )
+        orden = self._orden_abierta()
+        self.client.post(reverse("agregar_item", args=[orden.id, pollo.id]))
+        self.client.post(reverse("agregar_item", args=[orden.id, acompanamiento.id]))
+        self.client.post(reverse("confirmar_orden", args=[orden.id]), {"para_llevar": "1"})
+
+        orden.refresh_from_db()
+        self.assertEqual(orden.total(), Decimal("3.75") + Decimal("1.75") + Decimal("0.25") * 2)
