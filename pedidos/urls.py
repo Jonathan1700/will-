@@ -22,12 +22,12 @@ urlpatterns = [
     path("orden/<int:orden_id>/cobrar-directo/", views.confirmar_venta_directa, name="confirmar_venta_directa"),
     path("api/disponibilidad/", views.disponibilidad_json, name="disponibilidad_json"),
     path("api/listas/", views.ordenes_listas_json, name="ordenes_listas_json"),
-    path("orden/<int:orden_id>/entregar/", views.entregar_a_cliente, name="entregar_a_cliente"),
+    path("orden/<int:orden_id>/cuenta/<int:cuenta>/entregar/", views.entregar_pedido, name="entregar_pedido"),
 
     # cocina xd
     path("cocina/", views.panel_cocina, name="panel_cocina"),
     path("cocina/api/pendientes/", views.ordenes_pendientes_json, name="ordenes_pendientes_json"),
-    path("cocina/orden/<int:orden_id>/entregada/", views.marcar_entregada, name="marcar_entregada"),
+    path("cocina/orden/<int:orden_id>/cuenta/<int:cuenta>/lista/", views.marcar_pedido_listo, name="marcar_pedido_listo"),
     path("cocina/producto/<int:producto_id>/toggle/", views.toggle_disponibilidad, name="toggle_disponibilidad"),
     path("cocina/producto/<int:producto_id>/temporizador/", views.poner_temporizador, name="poner_temporizador"),
     path("cocina/pieza/<int:pieza_id>/stock/", views.actualizar_stock_pieza, name="actualizar_stock_pieza"),

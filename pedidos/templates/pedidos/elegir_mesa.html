@@ -13,18 +13,18 @@
     {% if ordenes_listas %}
     <h2 class="seccion-titulo listos-titulo">Listos para llevar a la mesa</h2>
     <div class="listos-grid">
-        {% for orden in ordenes_listas %}
+        {% for p in ordenes_listas %}
         <div class="listo-card">
             <div class="listo-head">
-                <span class="listo-mesa">Mesa {{ orden.mesa.numero }}</span>
+                <span class="listo-mesa">Mesa {{ p.orden.mesa.numero }} · Pedido {{ p.cuenta }}</span>
                 <span class="listo-tag">Listo</span>
             </div>
             <p class="listo-detalle">
-                {% for item in orden.items.all %}{{ item.cantidad }}x {{ item.producto.nombre }}{% if item.notas %} ({{ item.notas }}){% endif %}{% if not forloop.last %} · {% endif %}{% endfor %}
+                {% for item in p.items %}{{ item.cantidad }}x {{ item.producto.nombre }}{% if item.notas %} ({{ item.notas }}){% endif %}{% if not forloop.last %} · {% endif %}{% endfor %}
             </p>
             <div class="listo-foot">
-                <span class="listo-total">${{ orden.total }}</span>
-                <form method="post" action="{% url 'entregar_a_cliente' orden.id %}">
+                <span class="listo-total">${{ p.total }}</span>
+                <form method="post" action="{% url 'entregar_pedido' p.orden.id p.cuenta %}">
                     {% csrf_token %}
                     <button class="listo-btn">Ya la entregue</button>
                 </form>
@@ -47,8 +47,8 @@
 </div>
 
 <script>
-// Avisa en la tablet cuando cocina marca un pedido como listo
-const listasActual = [{% for orden in ordenes_listas %}{{ orden.id }},{% endfor %}].join(',');
+// Avisa en la tablet cuando cocina marca un pedido como listo (una cuenta de la mesa)
+const listasActual = [{% for p in ordenes_listas %}{{ p.orden.id }}-{{ p.cuenta }},{% endfor %}].join(',');
 
 setInterval(() => {
     fetch("{% url 'ordenes_listas_json' %}")

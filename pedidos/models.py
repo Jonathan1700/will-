@@ -252,8 +252,8 @@ class DetalleOrden(models.Model):
     # pollo 1/4, 1/2 o entero: cliente quiere el pollo cortado en piezas antes de servir
     despresado = models.BooleanField(default=False)
 
-    # a cual cuenta de la mesa pertenece este item (para dividir la cuenta). No afecta a
-    # cocina: el ticket sigue mostrando todos los items de la orden juntos, como siempre.
+    # a cual cuenta (pedido) de la mesa pertenece este item: el mesero divide la cuenta
+    # y cocina prepara y marca cada pedido por separado.
     cuenta = models.PositiveIntegerField(default=1)
 
     def __str__(self):
@@ -290,6 +290,22 @@ class DetalleOrden(models.Model):
 
     def subtotal(self):
         return self.precio_unitario() * self.cantidad
+
+
+class EstadoCuentaOrden(models.Model):
+    """Lo que cocina debe realizar de una cuenta (division) de la mesa: su 'pedido'.
+    Cocina la marca 'lista' por separado y el mesero la lleva a la mesa por separado,
+    asi ambos saben exactamente cual pedido de la misma mesa va saliendo."""
+    orden = models.ForeignKey(Orden, related_name="cuentas_estado", on_delete=models.CASCADE)
+    cuenta = models.PositiveIntegerField(default=1)
+    listo = models.BooleanField(default=False)
+    entregado = models.BooleanField(default=False)
+
+    class Meta:
+        unique_together = [("orden", "cuenta")]
+
+    def __str__(self):
+        return f"Orden #{self.orden_id} - Pedido {self.cuenta}"
 
 
 class Gasto(models.Model):

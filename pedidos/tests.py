@@ -4,7 +4,7 @@ from django.contrib.auth.models import User, Group
 from django.test import TestCase
 from django.urls import reverse
 
-from .models import DetalleOrden, Mesa, Orden, PiezaPollo, Producto, VarianteProducto
+from .models import DetalleOrden, Mesa, Orden, PiezaPollo, Producto, VarianteProducto, EstadoCuentaOrden
 
 
 class FlujoPedidoCompletoTest(TestCase):
@@ -47,13 +47,13 @@ class FlujoPedidoCompletoTest(TestCase):
         self.client.logout()
 
         self.client.login(username="cocina", password="1234")
-        self.client.post(reverse("marcar_entregada", args=[orden.id]))
+        self.client.post(reverse("marcar_pedido_listo", args=[orden.id, 1]))
         orden.refresh_from_db()
         self.assertEqual(orden.estado, "entregada")
         self.client.logout()
 
         self.client.login(username="mesero", password="1234")
-        self.client.post(reverse("entregar_a_cliente", args=[orden.id]))
+        self.client.post(reverse("entregar_pedido", args=[orden.id, 1]))
         orden.refresh_from_db()
         self.assertEqual(orden.estado, "cerrada")
         self.client.logout()
@@ -363,3 +363,120 @@ class ParaLlevarTest(TestCase):
 
         orden.refresh_from_db()
         self.assertEqual(orden.total(), Decimal("3.75") + Decimal("1.75") + Decimal("0.25") * 2)
+
+
+class CuentasSeparadasTest(TestCase):
+    """Una mesa con varias cuentas (ej: 2 personas que pagan separado): cocina prepara
+    cada 'pedido' por separado y el mesero lo lleva a la mesa por separado. En cocina y
+    en la tablet aparecen uno a uno (Pedido 1, Pedido 2...), igual que el mesero los separo."""
+
+    def setUp(self):
+        Group.objects.get_or_create(name="Mesero")
+        Group.objects.get_or_create(name="Cocina")
+        self.mesero = User.objects.create_user("mesero", password="1234")
+        self.mesero.groups.add(Group.objects.get(name="Mesero"))
+        self.cocina = User.objects.create_user("cocina", password="1234")
+        self.cocina.groups.add(Group.objects.get(name="Cocina"))
+
+        self.mesa = Mesa.objects.create(numero=1)
+        self.pollo = Producto.objects.create(
+            nombre="1/4 Pollo a la brasa", precio=Decimal("3.75"), categoria="pollo"
+        )
+        self.bebida = Producto.objects.create(
+            nombre="Coca-Cola", precio=Decimal("1.50"), categoria="bebidas"
+        )
+
+    def _crear_orden_dividida(self):
+        """Cuenta 1: 1/4 de pollo. Cuenta 2: coca. Confirmada y enviada a cocina."""
+        self.client.login(username="mesero", password="1234")
+        self.client.get(reverse("menu_mesa", args=[self.mesa.id]))
+        orden = Orden.objects.get(mesa=self.mesa, estado="abierta", es_venta_directa=False)
+        self.client.post(reverse("agregar_item", args=[orden.id, self.pollo.id]), {"cuenta": "1"})
+        self.client.post(reverse("agregar_item", args=[orden.id, self.bebida.id]), {"cuenta": "2"})
+        self.client.post(reverse("confirmar_orden", args=[orden.id]))
+        orden.refresh_from_db()
+        self.assertEqual(orden.estado, "enviada")
+        self.assertEqual(
+            {e.cuenta for e in orden.cuentas_estado.all()},
+            {1, 2},
+            "Se deben crear estados de entrega para cada cuenta de la orden",
+        )
+        return orden
+
+    def test_cocina_ve_pedidos_separados_y_se_marcan_listos_uno_a_uno(self):
+        """cocina prepara la coca (pedido 2) y la marca lista sin tocar el pollo (pedido 1)."""
+        orden = self._crear_orden_dividida()
+
+        self.client.login(username="cocina", password="1234")
+        respuesta = self.client.get(reverse("panel_cocina"))
+        cocina = respuesta.context["ordenes"][0]
+        pedidos = {pc["numero"]: pc for pc in cocina.pedidos_cocina}
+        self.assertIn(1, pedidos, "El pedido 1 (1/4 pollo) debe aparecer en cocina")
+        self.assertIn(2, pedidos, "El pedido 2 (coca) debe aparecer en cocina")
+        self.assertEqual(pedidos[1]["items"][0].producto, self.pollo)
+        self.assertEqual(pedidos[2]["items"][0].producto, self.bebida)
+        self.assertFalse(pedidos[1]["listo"])
+
+        # solo el pedido 2 sale: la orden sigue en cocina hasta que todo este listo
+        self.client.post(reverse("marcar_pedido_listo", args=[orden.id, 2]))
+        orden.refresh_from_db()
+        self.assertEqual(orden.estado, "enviada")
+        self.assertFalse(orden.cuentas_estado.get(cuenta=1).listo)
+        self.assertTrue(orden.cuentas_estado.get(cuenta=2).listo)
+
+        # la tablet del mesero avisa solo el pedido 2 (coca), no el pollo que falta
+        self.client.login(username="mesero", password="1234")
+        respuesta = self.client.get(reverse("elegir_mesa"))
+        pendientes = [(p["orden"].id, p["cuenta"]) for p in respuesta.context["ordenes_listas"]]
+        self.assertEqual(pendientes, [(orden.id, 2)])
+        tarjeta = respuesta.context["ordenes_listas"][0]
+        self.assertEqual([i.producto for i in tarjeta["items"]], [self.bebida])
+        self.assertEqual(tarjeta["total"], Decimal("1.50"))
+
+        # el mesero entrega el pedido 2: la mesa sigue pendiente en cocina (falta el 1)
+        self.client.post(reverse("entregar_pedido", args=[orden.id, 2]))
+        orden.refresh_from_db()
+        self.assertEqual(orden.estado, "enviada")
+
+        # cocina marca el pedido 1: recien ahi la orden pasa a 'entregada'
+        self.client.login(username="cocina", password="1234")
+        self.client.post(reverse("marcar_pedido_listo", args=[orden.id, 1]))
+        orden.refresh_from_db()
+        self.assertEqual(orden.estado, "entregada")
+
+        # entregado el 1/4 de pollo, se cierra la orden completa
+        self.client.login(username="mesero", password="1234")
+        self.client.post(reverse("entregar_pedido", args=[orden.id, 1]))
+        orden.refresh_from_db()
+        self.assertEqual(orden.estado, "cerrada")
+        self.assertTrue(orden.cuentas_estado.get(cuenta=1).entregado)
+        self.assertTrue(orden.cuentas_estado.get(cuenta=2).entregado)
+
+    def test_una_sola_cuenta_sete_entrega_normal(self):
+        """Con una unica cuenta no se divide nada: cocina marca listo y el mesero entrega."""
+        self.client.login(username="mesero", password="1234")
+        self.client.get(reverse("menu_mesa", args=[self.mesa.id]))
+        orden = Orden.objects.get(mesa=self.mesa, estado="abierta", es_venta_directa=False)
+        self.client.post(reverse("agregar_item", args=[orden.id, self.pollo.id]), {"cuenta": "1"})
+        self.client.post(reverse("confirmar_orden", args=[orden.id]))
+
+        orden.refresh_from_db()
+        self.assertEqual(list(orden.cuentas_estado.values_list("cuenta", flat=True)), [1])
+
+        self.client.login(username="cocina", password="1234")
+        respuesta = self.client.get(reverse("panel_cocina"))
+        cocina = respuesta.context["ordenes"][0]
+        pedidos = cocina.pedidos_cocina
+        self.assertEqual(len(pedidos), 1)
+        self.assertTemplateUsed(respuesta, "pedidos/panel_cocina.html")
+
+        self.client.post(reverse("marcar_pedido_listo", args=[orden.id, 1]))
+        orden.refresh_from_db()
+        self.assertEqual(orden.estado, "entregada")
+
+        self.client.login(username="mesero", password="1234")
+        respuesta = self.client.get(reverse("elegir_mesa"))
+        self.assertEqual(respuesta.context["ordenes_listas"][0]["cuenta"], 1)
+        self.client.post(reverse("entregar_pedido", args=[orden.id, 1]))
+        orden.refresh_from_db()
+        self.assertEqual(orden.estado, "cerrada")

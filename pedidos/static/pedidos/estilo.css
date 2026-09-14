@@ -456,6 +456,52 @@ table.ticket .t-num {
     letter-spacing: 0;
 }
 
+/* ---- comanda dividida por pedidos (cuentas de la mesa) ---- */
+.comanda-pedido {
+    margin-top: 12px;
+    padding-top: 10px;
+    border-top: 1px dashed #C9BFA8;
+}
+
+.comanda-pedido:first-of-type {
+    margin-top: 0;
+    padding-top: 0;
+    border-top: none;
+}
+
+.comanda-pedido-listo {
+    background: #F5FAF4;
+    border-radius: 6px;
+    padding: 8px 10px;
+}
+
+.ticket-cuenta-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+}
+
+.pedido-num {
+    font-family: 'Anton', sans-serif;
+    font-size: 16px;
+    color: var(--navy);
+}
+
+.comanda-total {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-top: 14px;
+    padding-top: 10px;
+    border-top: 2px solid var(--navy);
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    color: var(--navy);
+}
+
 /* ---- disponibilidad en recuadros ---- */
 
 .disp-grid {

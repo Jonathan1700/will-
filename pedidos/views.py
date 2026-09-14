@@ -14,7 +14,7 @@ from openpyxl.utils import get_column_letter
 
 from .models import (
     Mesa, Producto, Orden, DetalleOrden, RegistroAccion, PiezaPollo, TipoMenestra, VarianteProducto,
-    Gasto, Cuenta,
+    Gasto, Cuenta, EstadoCuentaOrden,
 )
 
 
@@ -90,10 +90,33 @@ def post_login(request):
 @user_passes_test(es_mesero)
 def elegir_mesa(request):
     mesas = Mesa.objects.all().order_by("numero")
-    listas = Orden.objects.filter(estado="entregada").order_by("enviado_a_cocina")
+
+    # pedidos (cuentas) que cocina ya dejo listos y el mesero todavia no llevo a la mesa.
+    # Cada cuenta va apareciendo sola: asi el mesero sabe si salio el pedido 1 o el 2.
+    estados = (
+        EstadoCuentaOrden.objects.filter(
+            listo=True, entregado=False,
+            orden__estado__in=["enviada", "entregada"],
+            orden__es_venta_directa=False,
+        )
+        .select_related("orden", "orden__mesa")
+        .prefetch_related("orden__items__producto", "orden__items__acompanamiento")
+        .order_by("orden__enviado_a_cocina", "cuenta")
+    )
+
+    pendientes = []
+    for ec in estados:
+        items = [i for i in ec.orden.items.all() if i.cuenta == ec.cuenta]
+        pendientes.append({
+            "orden": ec.orden,
+            "cuenta": ec.cuenta,
+            "items": items,
+            "total": sum(i.subtotal() for i in items),
+        })
+
     return render(request, "pedidos/elegir_mesa.html", {
         "mesas": mesas,
-        "ordenes_listas": listas,
+        "ordenes_listas": pendientes,
     })
 
 
@@ -101,7 +124,7 @@ def elegir_mesa(request):
 @user_passes_test(es_mesero)
 def cuentas_mesa(request, mesa_id):
     """Cuentas en las que esta dividida una mesa (ej: 3 personas piden junto y pagan
-    separado). Cocina no ve nada de esto: el ticket sigue llegando junto, como siempre."""
+    separado). Cocina los ve como 'pedidos' separados de la misma mesa."""
     mesa = get_object_or_404(Mesa, id=mesa_id)
     cuentas = []
     for cuenta in mesa.cuentas.filter(cerrada=False):
@@ -158,21 +181,40 @@ def eliminar_cuenta(request, cuenta_id):
 
 
 def ordenes_listas_json(request):
-    """Pedidos que cocina ya marco como listos, para avisar en la tablet del mesero."""
-    ordenes = Orden.objects.filter(estado="entregada").order_by("enviado_a_cocina")
-    data = [{"id": o.id, "mesa": o.mesa.numero} for o in ordenes]
+    """Pedidos (cuenta por cuenta) que cocina ya marco como listos, para avisar a la tablet."""
+    estados = (
+        EstadoCuentaOrden.objects.filter(
+            listo=True, entregado=False,
+            orden__estado__in=["enviada", "entregada"],
+            orden__es_venta_directa=False,
+        )
+        .select_related("orden__mesa")
+    )
+    data = [{
+        "id": f"{ec.orden_id}-{ec.cuenta}",
+        "orden": ec.orden_id,
+        "cuenta": ec.cuenta,
+        "mesa": ec.orden.mesa.numero,
+    } for ec in estados]
     return JsonResponse({"listas": data})
 
 
 @login_required
 @user_passes_test(es_mesero)
 @require_POST
-def entregar_a_cliente(request, orden_id):
-    """El mesero confirma que ya llevo el pedido listo a la mesa."""
-    orden = get_object_or_404(Orden, id=orden_id, estado="entregada")
-    orden.estado = "cerrada"
-    orden.save()
-    registrar(request.user, f"Entrego al cliente orden #{orden.id} - Mesa {orden.mesa.numero}")
+def entregar_pedido(request, orden_id, cuenta):
+    """El mesero confirma que ya llevo a la mesa un pedido (cuenta) de la orden.
+    La orden se cierra cuando ya se entregaron todos sus pedidos."""
+    estado = get_object_or_404(EstadoCuentaOrden, orden_id=orden_id, cuenta=cuenta)
+    estado.entregado = True
+    estado.save()
+
+    orden = estado.orden
+    if not EstadoCuentaOrden.objects.filter(orden=orden, entregado=False).exists():
+        orden.estado = "cerrada"
+        orden.save()
+
+    registrar(request.user, f"Entrego pedido {cuenta} - Mesa {orden.mesa.numero}")
     return redirect("elegir_mesa")
 
 
@@ -183,8 +225,8 @@ def menu_mesa(request, mesa_id):
     orden, _ = Orden.objects.get_or_create(mesa=mesa, estado="abierta", es_venta_directa=False)
     orden_directa = Orden.objects.filter(mesa=mesa, estado="abierta", es_venta_directa=True).first()
 
-    # cuenta que el mesero esta viendo/editando (division de la mesa). Cocina no la ve:
-    # todos los items de la orden, sean de la cuenta que sean, van juntos en un solo ticket.
+    # cuenta que el mesero esta viendo/editando (division de la mesa). Cocina ve cada
+    # cuenta como un 'pedido' aparte y los prepara/entrega por separado.
     try:
         cuenta_activa = int(request.GET.get("cuenta", 1))
     except ValueError:
@@ -356,6 +398,10 @@ def confirmar_orden(request, orden_id):
     orden.estado = "enviada"
     orden.enviado_a_cocina = timezone.now()
     orden.para_llevar = request.POST.get("para_llevar") == "1"
+    # cada cuenta (division de la mesa) se prepara y se entrega por separado: cocina
+    # ve "Pedido 1", "Pedido 2"... igual que el mesero los separo al cargar los items.
+    for numero in sorted({item.cuenta for item in orden.items.all()}):
+        EstadoCuentaOrden.objects.get_or_create(orden=orden, cuenta=numero)
     orden.save()
 
     tipo = "para llevar" if orden.para_llevar else "para servir"
@@ -418,7 +464,27 @@ def confirmar_venta_directa(request, orden_id):
 @login_required
 @user_passes_test(es_cocina)
 def panel_cocina(request):
-    ordenes = Orden.objects.filter(estado="enviada").order_by("enviado_a_cocina")
+    ordenes = list(
+        Orden.objects.filter(estado="enviada")
+        .order_by("enviado_a_cocina")
+        .prefetch_related("items__producto", "items__acompanamiento", "cuentas_estado")
+    )
+
+    # cada orden llega dividida en 'pedidos' (las cuentas de la mesa): cocina arma cada
+    # uno por separado y los marca como listos uno a uno, igual que el mesero los separo.
+    for orden in ordenes:
+        estados = {e.cuenta: e for e in orden.cuentas_estado.all()}
+        pedidos = []
+        for numero in sorted({item.cuenta for item in orden.items.all()}):
+            items_cuenta = [item for item in orden.items.all() if item.cuenta == numero]
+            estado = estados.get(numero)
+            pedidos.append({
+                "numero": numero,
+                "listo": bool(estado and estado.listo),
+                "items": items_cuenta,
+                "total": sum(item.subtotal() for item in items_cuenta),
+            })
+        orden.pedidos_cocina = pedidos
 
     # disponibilidad agrupada por categoria, en el mismo orden que las pestañas del mesero
     productos = list(Producto.objects.all().order_by("nombre"))
@@ -451,11 +517,19 @@ def ordenes_pendientes_json(request):
 @login_required
 @user_passes_test(es_cocina)
 @require_POST
-def marcar_entregada(request, orden_id):
+def marcar_pedido_listo(request, orden_id, cuenta):
+    """Cocina marca que un pedido (cuenta) ya salio. Cuando estan todos listos,
+    la orden completa pasa a 'entregada' y avisa a la tablet del mesero."""
     orden = get_object_or_404(Orden, id=orden_id)
-    orden.estado = "entregada"
-    orden.save()
-    registrar(request.user, f"Marco como listo orden #{orden.id} - Mesa {orden.mesa.numero}")
+    estado, _ = EstadoCuentaOrden.objects.get_or_create(orden=orden, cuenta=cuenta)
+    estado.listo = True
+    estado.save()
+
+    if not EstadoCuentaOrden.objects.filter(orden=orden, listo=False).exists():
+        orden.estado = "entregada"
+        orden.save()
+
+    registrar(request.user, f"Marco listo pedido {cuenta} - Mesa {orden.mesa.numero}")
     return redirect("panel_cocina")
 
 

@@ -1,7 +1,7 @@
 from django.contrib import admin
 from .models import (
     Mesa, Producto, Orden, DetalleOrden, RegistroAccion, PiezaPollo, VarianteProducto,
-    TipoMenestra, Gasto, Cuenta,
+    TipoMenestra, Gasto, Cuenta, EstadoCuentaOrden,
 )
 
 
@@ -44,11 +44,16 @@ class DetalleOrdenInline(admin.TabularInline):
     extra = 0
 
 
+class EstadoCuentaOrdenInline(admin.TabularInline):
+    model = EstadoCuentaOrden
+    extra = 0
+
+
 @admin.register(Orden)
 class OrdenAdmin(admin.ModelAdmin):
     list_display = ("id", "mesa", "estado", "creado", "total")
     list_filter = ("estado", "mesa")
-    inlines = [DetalleOrdenInline]
+    inlines = [DetalleOrdenInline, EstadoCuentaOrdenInline]
 
 
 @admin.register(Gasto)

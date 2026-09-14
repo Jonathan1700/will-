@@ -29,43 +29,60 @@
             <span>{{ orden.enviado_a_cocina|date:"d/m/Y H:i" }}</span>
         </div>
 
-        <table class="ticket">
-            <thead>
-                <tr>
-                    <th class="t-cant">Cant</th>
-                    <th>Producto</th>
-                    <th class="t-num">P. unit</th>
-                    <th class="t-num">Subtotal</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for item in orden.items.all %}
-                <tr>
-                    <td class="t-cant">{{ item.cantidad }}</td>
-                    <td>
-                        {{ item.producto.nombre }}
-                        {% if item.notas %}<span class="t-nota">{{ item.notas }}</span>{% endif %}
-                        {% if item.acompanamiento %}<span class="t-nota t-cambio">sin {{ item.producto.acompanamiento_incluido|lower }} → {{ item.acompanamiento.nombre }}</span>{% endif %}
-                        {% if item.sin_acompanamientos %}<span class="t-nota t-cambio">sin {{ item.sin_acompanamientos|lower }}</span>{% endif %}
-                        {% for grupo, opcion in item.lista_variantes_elegidas %}<span class="t-nota">{{ grupo }}: {{ opcion }}</span>{% endfor %}
-                        {% if item.despresado %}<span class="t-nota t-cambio">Despresado</span>{% endif %}
-                    </td>
-                    <td class="t-num">${{ item.precio_unitario }}</td>
-                    <td class="t-num">${{ item.subtotal }}</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+        {% for pc in orden.pedidos_cocina %}
+        <section class="comanda-pedido {% if pc.listo %}comanda-pedido-listo{% endif %}">
+            <div class="ticket-cuenta-head">
+                <span class="pedido-num">Pedido {{ pc.numero }}</span>
+                {% if pc.listo %}<span class="chip chip-ok">✓ Listo</span>{% endif %}
+            </div>
+            <table class="ticket">
+                <thead>
+                    <tr>
+                        <th class="t-cant">Cant</th>
+                        <th>Producto</th>
+                        <th class="t-num">P. unit</th>
+                        <th class="t-num">Subtotal</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in pc.items %}
+                    <tr>
+                        <td class="t-cant">{{ item.cantidad }}</td>
+                        <td>
+                            {{ item.producto.nombre }}
+                            {% if item.notas %}<span class="t-nota">{{ item.notas }}</span>{% endif %}
+                            {% if item.acompanamiento %}<span class="t-nota t-cambio">sin {{ item.producto.acompanamiento_incluido|lower }} → {{ item.acompanamiento.nombre }}</span>{% endif %}
+                            {% if item.sin_acompanamientos %}<span class="t-nota t-cambio">sin {{ item.sin_acompanamientos|lower }}</span>{% endif %}
+                            {% for grupo, opcion in item.lista_variantes_elegidas %}<span class="t-nota">{{ grupo }}: {{ opcion }}</span>{% endfor %}
+                            {% if item.despresado %}<span class="t-nota t-cambio">Despresado</span>{% endif %}
+                        </td>
+                        <td class="t-num">${{ item.precio_unitario }}</td>
+                        <td class="t-num">${{ item.subtotal }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
 
-        <div class="ticket-total">
-            <span>Total</span>
+            <div class="ticket-total">
+                <span>Total pedido {{ pc.numero }}</span>
+                <span class="ticket-total-monto">${{ pc.total }}</span>
+            </div>
+
+            {% if not pc.listo %}
+            <form method="post" action="{% url 'marcar_pedido_listo' orden.id pc.numero %}" style="margin-top:12px;">
+                {% csrf_token %}
+                <button class="btn">
+                    {% if orden.pedidos_cocina|length == 1 %}Marcar como listo{% else %}Marcar listo pedido {{ pc.numero }}{% endif %}
+                </button>
+            </form>
+            {% endif %}
+        </section>
+        {% endfor %}
+
+        <div class="comanda-total">
+            <span>Total mesa</span>
             <span class="ticket-total-monto">${{ orden.total }}</span>
         </div>
-
-        <form method="post" action="{% url 'marcar_entregada' orden.id %}" style="margin-top:12px;">
-            {% csrf_token %}
-            <button class="btn">Marcar como listo</button>
-        </form>
     </div>
     {% empty %}
     <p class="comandas-vacio">No hay pedidos pendientes por ahora.</p>
