@@ -39,4 +39,7 @@ urlpatterns = [
     path("reportes/stock/", views.actualizar_stock, name="actualizar_stock"),
     path("reportes/gastos/agregar/", views.agregar_gasto, name="agregar_gasto"),
     path("reportes/gastos/<int:gasto_id>/eliminar/", views.eliminar_gasto, name="eliminar_gasto"),
+    path("reportes/gastos-fijos/agregar/", views.agregar_gasto_recurrente, name="agregar_gasto_recurrente"),
+    path("reportes/gastos-fijos/<int:recurrente_id>/toggle/", views.toggle_gasto_recurrente, name="toggle_gasto_recurrente"),
+    path("reportes/gastos-fijos/<int:recurrente_id>/eliminar/", views.eliminar_gasto_recurrente, name="eliminar_gasto_recurrente"),
 ]

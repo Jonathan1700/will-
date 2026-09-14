@@ -45,6 +45,8 @@
             <a href="#bebidas" class="menu-item" data-seccion="bebidas">Bebidas</a>
             <a href="#ordenes" class="menu-item" data-seccion="ordenes">Ordenes</a>
             <a href="#gastos" class="menu-item" data-seccion="gastos">Gastos y ganancia</a>
+            <a href="#fijos" class="menu-item" data-seccion="fijos">Gastos fijos</a>
+            <a href="#margenes" class="menu-item" data-seccion="margenes">Margen por grupo</a>
             <a href="/admin/" class="menu-item menu-externo" data-nav="normal">Productos y usuarios</a>
         </nav>
 
@@ -131,7 +133,7 @@
             <header class="panel-head panel-head-fila">
                 <div>
                     <h2>Inventario de bebidas y gaseosas</h2>
-                    <span class="panel-sub">Activa "Llevar conteo" en las que vienen en botella o lata, escribe las unidades y guarda. Se descuentan solas con cada orden; en 0 el mesero las ve agotadas. Las que se preparan (jugos) van sin conteo.</span>
+                    <span class="panel-sub">Activa "Llevar conteo" en las que vienen en botella o lata, escribe las unidades y guarda. Se descuentan solas con cada orden; en 0 el mesero las ve agotadas. Las que se preparan (jugos) van sin conteo. El precio de compra es lo que a ti te cuesta cada una: se usa para calcular el margen real de bebidas.</span>
                 </div>
                 {% if request.GET.guardado %}<span class="aviso-ok">✓ Inventario guardado</span>{% endif %}
             </header>
@@ -143,7 +145,7 @@
                         <thead>
                             <tr>
                                 <th>Producto</th><th>Tipo</th><th class="num">Vendidas en el periodo</th>
-                                <th>Llevar conteo</th><th>Unidades en stock</th><th>Agregar rapido</th>
+                                <th>Llevar conteo</th><th>Unidades en stock</th><th class="num">Precio de compra</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -163,10 +165,12 @@
                                     <input type="number" min="0" step="1" name="stock_{{ p.id }}" id="stock-{{ p.id }}" class="inv-input"
                                            value="{{ p.stock|default_if_none:'' }}" {% if not p.controla_stock %}disabled{% endif %}>
                                 </td>
-                                <td class="inv-rapido">
-                                    <button type="button" data-suma="6" data-target="stock-{{ p.id }}" {% if not p.controla_stock %}disabled{% endif %}>+6</button>
-                                    <button type="button" data-suma="12" data-target="stock-{{ p.id }}" {% if not p.controla_stock %}disabled{% endif %}>+12</button>
-                                    <button type="button" data-suma="24" data-target="stock-{{ p.id }}" {% if not p.controla_stock %}disabled{% endif %}>+24</button>
+                                <td class="num">
+                                    <span class="inv-precio-wrap">
+                                        <span class="inv-precio-signo">$</span>
+                                        <input type="number" min="0" step="0.01" name="precio_compra_{{ p.id }}" class="inv-input"
+                                               placeholder="0.00" value="{{ p.precio_compra|default_if_none:'' }}">
+                                    </span>
                                 </td>
                             </tr>
                             {% endwith %}
@@ -253,7 +257,7 @@
         <section class="panel panel-ancho">
             <header class="panel-head">
                 <h2>Ingresos vs gastos de {{ etiqueta }}</h2>
-                <span class="panel-sub">Carga aqui lo gastado en materia prima e insumos de este periodo (ej: "20 pollos", "15 kg de papa", "aceite y condimentos").</span>
+                <span class="panel-sub">Solo insumos variables (pollo, papa, vegetales, aceite, condimentos, bebidas...). Los gastos fijos (alquiler, sueldos, luz...) se cargan y se ven en la pestaña "Gastos fijos".</span>
             </header>
 
             <div class="kpis">
@@ -263,16 +267,29 @@
                 </div>
                 <div class="kpi">
                     <p class="kpi-label">Gastos</p>
-                    <p class="kpi-valor">${{ financiero.total_gastos|floatformat:2 }}</p>
+                    <p class="kpi-valor">${{ financiero_variable.total_gastos|floatformat:2 }}</p>
                 </div>
                 <div class="kpi">
-                    <p class="kpi-label">{% if financiero.ganancia < 0 %}Perdida{% else %}Ganancia{% endif %}</p>
-                    <p class="kpi-valor {% if financiero.ganancia < 0 %}neg{% endif %}">${{ financiero.ganancia|floatformat:2 }}</p>
-                    {% if financiero.margen is not None %}<p class="kpi-delta {% if financiero.margen < 0 %}baja{% else %}sube{% endif %}">{{ financiero.margen }}% de margen</p>{% endif %}
+                    <p class="kpi-label">{% if financiero_variable.ganancia < 0 %}Perdida{% else %}Ganancia{% endif %}</p>
+                    <p class="kpi-valor {% if financiero_variable.ganancia < 0 %}neg{% endif %}">${{ financiero_variable.ganancia|floatformat:2 }}</p>
+                    {% if financiero_variable.margen is not None %}<p class="kpi-delta {% if financiero_variable.margen < 0 %}baja{% else %}sube{% endif %}">{{ financiero_variable.margen }}% de margen</p>{% endif %}
                 </div>
             </div>
 
-            <form method="post" action="{% url 'agregar_gasto' %}" class="gasto-form">
+            {% if plantillas_gasto %}
+            <div class="plantillas-gasto">
+                <span class="campo-gasto-label">Gastos frecuentes:</span>
+                {% for pl in plantillas_gasto %}
+                <button type="button" class="chip-plantilla"
+                        data-categoria="{{ pl.categoria }}" data-descripcion="{{ pl.descripcion }}" data-monto="{{ pl.monto }}"
+                        onclick="llenarGasto(this)">
+                    {{ pl.descripcion }} · ${{ pl.monto|floatformat:2 }}
+                </button>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <form method="post" action="{% url 'agregar_gasto' %}" class="gasto-form" id="form-gasto">
                 {% csrf_token %}
                 <input type="hidden" name="volver" value="rango={{ rango }}&fecha={{ ancla|date:'Y-m-d' }}">
                 <label class="campo-gasto">
@@ -300,6 +317,15 @@
                 </label>
                 <button type="submit" class="btn-guardar">Agregar gasto</button>
             </form>
+            <script>
+                function llenarGasto(boton) {
+                    const form = document.getElementById('form-gasto');
+                    form.categoria.value = boton.dataset.categoria;
+                    form.descripcion.value = boton.dataset.descripcion;
+                    form.monto.value = boton.dataset.monto;
+                    form.monto.focus();
+                }
+            </script>
 
             <div class="tabla-scroll">
                 <table class="tabla">
@@ -307,7 +333,7 @@
                         <tr><th>Fecha</th><th>Categoria</th><th>Descripcion</th><th class="num">Monto</th><th></th></tr>
                     </thead>
                     <tbody>
-                        {% for g in financiero.gastos %}
+                        {% for g in financiero_variable.gastos %}
                         <tr>
                             <td class="mono">{{ g.fecha|date:"d/m/Y" }}</td>
                             <td class="detalle">{{ g.get_categoria_display }}</td>
@@ -325,11 +351,132 @@
                         <tr><td colspan="5" class="vacio">Sin gastos cargados en este periodo.</td></tr>
                         {% endfor %}
                     </tbody>
-                    {% if financiero.gastos %}
+                    {% if financiero_variable.gastos %}
                     <tfoot>
-                        <tr><td colspan="3" class="num"><strong>Total gastos del periodo</strong></td><td class="num"><strong>${{ financiero.total_gastos|floatformat:2 }}</strong></td><td></td></tr>
+                        <tr><td colspan="3" class="num"><strong>Total gastos del periodo</strong></td><td class="num"><strong>${{ financiero_variable.total_gastos|floatformat:2 }}</strong></td><td></td></tr>
                     </tfoot>
                     {% endif %}
+                </table>
+            </div>
+        </section>
+                </div>
+            </section>
+
+            <section class="seccion" id="sec-fijos" hidden>
+                <div class="dash-grid">
+        <section class="panel panel-ancho">
+            <header class="panel-head">
+                <h2>Gastos fijos mensuales</h2>
+                <span class="panel-sub">Alquiler, sueldos, luz, agua, internet... Se cargan una sola vez y el dashboard genera el gasto de cada mes solo, sin volver a escribirlo. Si vuelves a cargar un tipo ya existente (ej: cambio el monto de la luz), se actualiza en vez de duplicarse.</span>
+            </header>
+
+            <form method="post" action="{% url 'agregar_gasto_recurrente' %}" class="gasto-form" id="form-gasto-fijo">
+                {% csrf_token %}
+                <input type="hidden" name="volver" value="rango={{ rango }}&fecha={{ ancla|date:'Y-m-d' }}">
+                <label class="campo-gasto">
+                    <span class="campo-gasto-label">Tipo</span>
+                    <select name="tipo" id="tipo-gasto-fijo" onchange="document.getElementById('campo-nombre-otro').hidden = this.value !== 'otros';">
+                        {% for valor, nombre in tipos_gasto_fijo %}
+                        <option value="{{ valor }}">{{ nombre }}</option>
+                        {% endfor %}
+                    </select>
+                </label>
+                <label class="campo-gasto campo-gasto-ancho" id="campo-nombre-otro" hidden>
+                    <span class="campo-gasto-label">Especifica</span>
+                    <input type="text" name="nombre_otro" placeholder="Ej: Mantenimiento del local" maxlength="200">
+                </label>
+                <label class="campo-gasto">
+                    <span class="campo-gasto-label">Monto / mes</span>
+                    <span class="campo-monto">
+                        <span class="campo-monto-signo">$</span>
+                        <input type="number" name="monto" min="0.01" step="0.01" placeholder="0.00" required>
+                    </span>
+                </label>
+                <label class="campo-gasto">
+                    <span class="campo-gasto-label">Dia del mes</span>
+                    <input type="number" name="dia_mes" min="1" max="31" value="1" required style="width:70px;" title="Si el mes no llega a ese dia, se genera el ultimo dia de ese mes">
+                </label>
+                <button type="submit" class="btn-guardar">Guardar gasto fijo</button>
+            </form>
+
+            <div class="tabla-scroll">
+                <table class="tabla">
+                    <thead>
+                        <tr><th>Nombre</th><th class="num">Monto / mes</th><th class="num">Dia</th><th>Estado</th><th></th></tr>
+                    </thead>
+                    <tbody>
+                        {% for r in gastos_recurrentes %}
+                        <tr>
+                            <td>{{ r.nombre }}</td>
+                            <td class="num">${{ r.monto|floatformat:2 }}</td>
+                            <td class="num">{{ r.dia_mes }}</td>
+                            <td>
+                                <form method="post" action="{% url 'toggle_gasto_recurrente' r.id %}">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="volver" value="rango={{ rango }}&fecha={{ ancla|date:'Y-m-d' }}">
+                                    <button type="submit" class="chip chip-toggle {% if r.activo %}chip-ok{% else %}chip-alerta{% endif %}">
+                                        {% if r.activo %}Activo{% else %}Pausado{% endif %}
+                                    </button>
+                                </form>
+                            </td>
+                            <td>
+                                <form method="post" action="{% url 'eliminar_gasto_recurrente' r.id %}" onsubmit="return confirm('¿Eliminar este gasto fijo? Ya no se va a generar mas.');">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="volver" value="rango={{ rango }}&fecha={{ ancla|date:'Y-m-d' }}">
+                                    <button type="submit" class="btn-eliminar-fila" aria-label="Eliminar gasto fijo">✕</button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="5" class="vacio">Sin gastos fijos cargados.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+                </div>
+            </section>
+
+            <section class="seccion" id="sec-margenes" hidden>
+                <div class="dash-grid">
+        <section class="panel panel-ancho">
+            <header class="panel-head">
+                <h2>Ingresos por grupo de {{ etiqueta }}</h2>
+                <span class="panel-sub">Comida (pollo, combos, acompañamientos) vs. bebidas y gaseosas</span>
+            </header>
+            <div class="grafico" id="g-margen-ingresos" data-tipo="barras"></div>
+        </section>
+
+        <section class="panel panel-ancho">
+            <header class="panel-head">
+                <h2>Margen por grupo de {{ etiqueta }}</h2>
+                <span class="panel-sub">Separa comida de bebidas para ver cual de los dos deja mas ganancia. El costo de bebidas y gaseosas se calcula solo con el precio de compra cargado en la pestaña "Bebidas".</span>
+            </header>
+            <div class="tabla-scroll">
+                <table class="tabla">
+                    <thead>
+                        <tr><th>Grupo</th><th class="num">Ingresos</th><th class="num">Gastos</th><th class="num">{% if financiero.ganancia < 0 %}Perdida{% else %}Ganancia{% endif %}</th><th class="num">Margen</th></tr>
+                    </thead>
+                    <tbody>
+                        {% for gr in margen_grupos %}
+                        <tr>
+                            <td>{{ gr.nombre }}</td>
+                            <td class="num">${{ gr.ingresos|floatformat:2 }}</td>
+                            <td class="num">${{ gr.gastos|floatformat:2 }}</td>
+                            <td class="num {% if gr.ganancia < 0 %}neg{% endif %}">${{ gr.ganancia|floatformat:2 }}</td>
+                            <td class="num">{% if gr.margen is not None %}{{ gr.margen }}%{% else %}—{% endif %}</td>
+                        </tr>
+                        {% endfor %}
+                        {% if gastos_generales %}
+                        <tr>
+                            <td>Gastos generales (alquiler, sueldos... no ligados a un grupo)</td>
+                            <td class="num">—</td>
+                            <td class="num">${{ gastos_generales|floatformat:2 }}</td>
+                            <td class="num">—</td>
+                            <td class="num">—</td>
+                        </tr>
+                        {% endif %}
+                    </tbody>
                 </table>
             </div>
         </section>
@@ -422,7 +569,7 @@ function columnas(cont, serie) {
 }
 
 // Barras horizontales: ranking (valor en la punta)
-function barras(cont, filas, campoNombre, campoValor, fmt, campoExtra, fmtExtra) {
+function barras(cont, filas, campoNombre, campoValor, fmt, campoExtra, fmtExtra, etiquetaValor) {
     cont.replaceChildren();
     if (!filas.length) { cont.innerHTML = '<p class="vacio">Sin ventas en este periodo.</p>'; return; }
     const W = cont.clientWidth, filaH = 34, m = { t: 6, r: 64, b: 6, l: 8 };
@@ -441,7 +588,8 @@ function barras(cont, filas, campoNombre, campoValor, fmt, campoExtra, fmtExtra)
         g.appendChild(el('path', { d: `M${x0},${cy - 9} h${w - r} a${r},${r} 0 0 1 ${r},${r} v${18 - 2 * r} a${r},${r} 0 0 1 ${-r},${r} h${-(w - r)} z`, class: 'barra' + (i === 0 ? ' destacada' : '') }));
         g.appendChild(el('text', { x: x0 + w + 8, y: cy + 4, class: 'valor' }, fmt(f[campoValor])));
         const extra = campoExtra ? [[fmtExtra(f[campoExtra]), campoExtra === 'ingresos' ? 'en ingresos' : campoExtra]] : [];
-        g.addEventListener('pointermove', e => mostrarTip(e, nombre, [[fmt(f[campoValor]), campoValor === 'cantidad' ? 'unidades' : 'ingresos'], ...extra]));
+        const etiq = etiquetaValor || (campoValor === 'cantidad' ? 'unidades' : 'ingresos');
+        g.addEventListener('pointermove', e => mostrarTip(e, nombre, [[fmt(f[campoValor]), etiq], ...extra]));
         g.addEventListener('pointerleave', ocultarTip);
         svg.appendChild(g);
     });
@@ -452,6 +600,10 @@ function dibujar() {
     columnas(document.getElementById('g-serie'), DATOS.serie);
     barras(document.getElementById('g-top'), DATOS.top, 'nombre', 'cantidad', v => v + ' uds', 'ingresos', dinero);
 }
+
+function dibujarMargenes() {
+    barras(document.getElementById('g-margen-ingresos'), DATOS.margenes, 'nombre', 'ingresos', dinero, null, null, 'ingresos');
+}
 // Secciones del menu lateral: se recuerda la ultima abierta (hash o localStorage)
 (() => {
     const items = document.querySelectorAll('.menu-item[data-seccion]');
@@ -461,6 +613,7 @@ function dibujar() {
         items.forEach(i => i.classList.toggle('activo', i.dataset.seccion === nombre));
         try { localStorage.setItem('dash-seccion', nombre); } catch (e) {}
         if (nombre === 'resumen') dibujar();   // los graficos necesitan ancho real para dibujarse
+        if (nombre === 'margenes') dibujarMargenes();
     };
     items.forEach(i => i.addEventListener('click', e => { e.preventDefault(); history.replaceState({}, '', '#' + i.dataset.seccion); mostrar(i.dataset.seccion); }));
     let inicial = location.hash.slice(1);
@@ -472,22 +625,15 @@ function dibujar() {
         if (activa) a.href = a.href.split('#')[0] + '#' + activa.dataset.seccion;
     }));
 })();
-let t; window.addEventListener('resize', () => { clearTimeout(t); t = setTimeout(dibujar, 150); });
+let t; window.addEventListener('resize', () => { clearTimeout(t); t = setTimeout(() => { dibujar(); dibujarMargenes(); }, 150); });
 
-// Inventario: el switch habilita la fila; los botones +6/+12/+24 suman al campo
+// Inventario: el switch habilita el campo de stock de esa fila
 document.querySelectorAll('.inv-switch input').forEach(chk => {
     chk.addEventListener('change', () => {
         const fila = chk.closest('tr');
-        const input = fila.querySelector('.inv-input');
+        const input = fila.querySelector('input[name^="stock_"]');
         input.disabled = !chk.checked;
         if (chk.checked && input.value === '') input.value = 0;
-        fila.querySelectorAll('.inv-rapido button').forEach(b => b.disabled = !chk.checked);
-    });
-});
-document.querySelectorAll('.inv-rapido button').forEach(btn => {
-    btn.addEventListener('click', () => {
-        const input = document.getElementById(btn.dataset.target);
-        input.value = (parseInt(input.value, 10) || 0) + parseInt(btn.dataset.suma, 10);
     });
 });
 </script>

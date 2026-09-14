@@ -45,6 +45,11 @@ class Producto(models.Model):
     controla_stock = models.BooleanField(default=False)
     stock = models.IntegerField(null=True, blank=True)
 
+    # precio al que se COMPRA este producto (bebidas/gaseosas de reventa, o el costo de
+    # insumos de un jugo preparado): se usa para calcular solo el costo real de bebidas
+    # en el margen por grupo, sin que el dueno tenga que cargarlo a mano como Gasto.
+    precio_compra = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True)
+
     # combos: descripcion de que incluye (sin descontar stock de componentes por ahora)
     es_combo = models.BooleanField(default=False)
     combo_incluye = models.CharField(max_length=250, blank=True)
@@ -329,11 +334,58 @@ class Gasto(models.Model):
     creado = models.DateTimeField(default=timezone.now)
     usuario = models.ForeignKey("auth.User", on_delete=models.SET_NULL, null=True, blank=True)
 
+    # si no es null, este gasto lo genero solo el sistema a partir de una plantilla fija
+    # (ver GastoRecurrente, mas abajo): sirve para no generarlo dos veces el mismo mes.
+    recurrente = models.ForeignKey(
+        "GastoRecurrente", on_delete=models.SET_NULL, null=True, blank=True, related_name="gastos"
+    )
+
     class Meta:
         ordering = ["-fecha", "-creado"]
 
     def __str__(self):
         return f"{self.fecha} - {self.descripcion} (${self.monto})"
+
+
+class GastoRecurrente(models.Model):
+    """Plantilla de gasto fijo mensual (alquiler, sueldos, luz, agua, internet...), cargada
+    desde el propio dashboard. El sistema despues genera el Gasto del mes solo, sin que el
+    dueno tenga que volver a escribirlo cada vez.
+
+    Los tipos predefinidos (todos menos "otros") son unicos: si el dueno vuelve a cargar
+    "Luz" porque cambio el monto, se actualiza el existente en vez de crear uno duplicado
+    (ver agregar_gasto_recurrente en views.py). "Otros" es libre: puede haber varios."""
+    TIPOS = [
+        ("luz", "Luz"),
+        ("agua", "Agua"),
+        ("internet", "Internet"),
+        ("alquiler", "Alquiler"),
+        ("sueldos", "Sueldos"),
+        ("otros", "Otros"),
+    ]
+
+    tipo = models.CharField(max_length=20, choices=TIPOS, default="otros")
+    # para los tipos predefinidos es el nombre del tipo (ej. "Luz"); para "otros" es lo
+    # que el dueno haya escrito (ej. "Mantenimiento del local").
+    nombre = models.CharField(max_length=200)
+    # los gastos fijos no son insumos de cocina ni bebidas: siempre "otros" para que
+    # el margen por grupo los muestre como gasto general, sin atribuirlos a un grupo de venta.
+    categoria = models.CharField(max_length=20, choices=Gasto.CATEGORIAS, default="otros")
+    monto = models.DecimalField(max_digits=8, decimal_places=2)
+    dia_mes = models.PositiveSmallIntegerField(
+        default=1,
+        help_text=(
+            "Dia del mes en que se genera (1-31). Si el mes no llega a ese dia "
+            "(ej: 31 en abril, o 30/31 en febrero) se genera el ultimo dia de ese mes."
+        ),
+    )
+    activo = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ["nombre"]
+
+    def __str__(self):
+        return f"{self.nombre} (${self.monto}/mes)"
 
 
 class RegistroAccion(models.Model):

@@ -1007,6 +1007,12 @@ table.ticket .t-num {
 .chip-cambio { background: #FBE9CE; color: var(--mustard-dark); }
 .chip-alerta { background: var(--danger-bg); color: var(--danger); }
 
+.chip-toggle {
+    border: none;
+    cursor: pointer;
+    font-family: inherit;
+}
+
 /* ---- panel "Tu pedido" ---- */
 .pedido {
     position: sticky;
@@ -1974,6 +1980,28 @@ a.btn-enviar-link {
 .kpi-valor.neg { color: var(--danger); }
 
 /* ---- gastos de materia prima (dashboard) ---- */
+.plantillas-gasto {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin: 4px 0 14px;
+}
+
+.chip-plantilla {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--ink-soft);
+    background: var(--cream);
+    border: 1px solid var(--line);
+    border-radius: 20px;
+    padding: 6px 12px;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.chip-plantilla:hover { background: #FBE9CE; color: var(--mustard-dark); }
+
 .gasto-form {
     display: flex;
     flex-wrap: wrap;
@@ -2153,22 +2181,8 @@ a.btn-enviar-link {
 .inv-input:focus { border-color: var(--navy); outline: none; }
 .inv-input:disabled { background: #F4F1EA; color: var(--ink-soft); }
 
-.inv-rapido { white-space: nowrap; }
-.inv-rapido button {
-    height: 34px;
-    padding: 0 10px;
-    margin-right: 4px;
-    border: 1.5px solid var(--navy);
-    border-radius: 8px;
-    background: #FFFFFF;
-    color: var(--navy);
-    font-family: inherit;
-    font-size: 12px;
-    font-weight: 700;
-    cursor: pointer;
-}
-.inv-rapido button:hover:not(:disabled) { background: var(--navy); color: var(--cream); }
-.inv-rapido button:disabled { opacity: .35; cursor: not-allowed; }
+.inv-precio-wrap { display: inline-flex; align-items: center; gap: 5px; }
+.inv-precio-signo { color: var(--ink-soft); font-weight: 700; }
 
 .chip-ok { background: var(--ok-bg); color: var(--ok); }
 

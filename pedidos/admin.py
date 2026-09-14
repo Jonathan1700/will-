@@ -1,7 +1,7 @@
 from django.contrib import admin
 from .models import (
     Mesa, Producto, Orden, DetalleOrden, RegistroAccion, PiezaPollo, VarianteProducto,
-    TipoMenestra, Gasto, Cuenta, EstadoCuentaOrden,
+    TipoMenestra, Gasto, GastoRecurrente, Cuenta, EstadoCuentaOrden,
 )
 
 
@@ -58,10 +58,19 @@ class OrdenAdmin(admin.ModelAdmin):
 
 @admin.register(Gasto)
 class GastoAdmin(admin.ModelAdmin):
-    list_display = ("fecha", "categoria", "descripcion", "monto", "usuario")
+    list_display = ("fecha", "categoria", "descripcion", "monto", "usuario", "recurrente")
     list_filter = ("categoria", "fecha")
     date_hierarchy = "fecha"
     ordering = ("-fecha", "-creado")
+
+
+@admin.register(GastoRecurrente)
+class GastoRecurrenteAdmin(admin.ModelAdmin):
+    """Gastos fijos mensuales (alquiler, sueldos, luz...): normalmente se cargan desde
+    el dashboard (seccion 'Gastos fijos'); aqui tambien se pueden editar/revisar."""
+    list_display = ("nombre", "tipo", "monto", "dia_mes", "activo")
+    list_editable = ("monto", "dia_mes", "activo")
+    list_filter = ("tipo", "activo")
 
 
 @admin.register(Cuenta)

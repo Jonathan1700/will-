@@ -5,8 +5,10 @@ from django.views.decorators.http import require_POST
 from django.utils import timezone
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required, user_passes_test
-from django.db.models import Sum, Max
+from django.db.models import Sum, Max, Count
 from datetime import timedelta, date
+from decimal import Decimal, InvalidOperation
+import calendar
 import json
 import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
@@ -14,7 +16,7 @@ from openpyxl.utils import get_column_letter
 
 from .models import (
     Mesa, Producto, Orden, DetalleOrden, RegistroAccion, PiezaPollo, TipoMenestra, VarianteProducto,
-    Gasto, Cuenta, EstadoCuentaOrden,
+    Gasto, GastoRecurrente, Cuenta, EstadoCuentaOrden,
 )
 
 
@@ -709,9 +711,121 @@ def _resumen_financiero(desde, hasta, ingresos):
     }
 
 
+def _resumen_financiero_variable(financiero, ingresos):
+    """Solo los gastos variables (insumos de cocina cargados a mano en esta pestaña),
+    sin los fijos recurrentes: esos tienen su propia pestaña 'Gastos fijos' y no deben
+    listarse ni sumarse de nuevo aqui. Reutiliza los gastos ya traidos por
+    _resumen_financiero para no repetir la consulta a la base."""
+    gastos = [g for g in financiero["gastos"] if g.recurrente_id is None]
+    total_gastos = float(sum(g.monto for g in gastos))
+    ganancia = ingresos - total_gastos
+    margen = round(ganancia / ingresos * 100) if ingresos else None
+    return {"gastos": gastos, "total_gastos": total_gastos, "ganancia": ganancia, "margen": margen}
+
+
+def _generar_gastos_recurrentes(usuario):
+    """Gastos fijos mensuales (alquiler, sueldos, luz...): en vez de que el dueno los
+    vuelva a escribir cada mes, se cargan una sola vez en /admin/ como GastoRecurrente
+    y esta funcion los convierte en un Gasto normal del mes en curso la primera vez que
+    alguien entra al dashboard despues de la fecha (dia_mes) que le corresponde."""
+    hoy = timezone.localdate()
+    for plantilla in GastoRecurrente.objects.filter(activo=True):
+        ya_generado = Gasto.objects.filter(
+            recurrente=plantilla, fecha__year=hoy.year, fecha__month=hoy.month,
+        ).exists()
+        if ya_generado:
+            continue
+        ultimo_dia_mes = calendar.monthrange(hoy.year, hoy.month)[1]
+        dia = min(plantilla.dia_mes, ultimo_dia_mes)
+        if dia > hoy.day:
+            continue  # todavia no le toca este mes
+        Gasto.objects.create(
+            fecha=hoy.replace(day=dia),
+            categoria=plantilla.categoria,
+            descripcion=plantilla.nombre,
+            monto=plantilla.monto,
+            usuario=usuario,
+            recurrente=plantilla,
+        )
+        registrar(usuario, f"Genero automaticamente el gasto fijo '{plantilla.nombre}' (${plantilla.monto:.2f})")
+
+
+def _plantillas_gasto(limite=6):
+    """Las descripciones de gasto que mas se repiten en el historial (ej: 'Compra de
+    pollo'), con la categoria y el monto usados la ultima vez, para llenar el
+    formulario en 1 clic en vez de escribir todo de nuevo."""
+    mas_repetidas = (
+        Gasto.objects.exclude(recurrente__isnull=False)
+        .values("descripcion")
+        .annotate(n=Count("id"))
+        .filter(n__gte=2)
+        .order_by("-n")[:limite]
+    )
+    plantillas = []
+    for fila in mas_repetidas:
+        ultimo = (
+            Gasto.objects.filter(descripcion=fila["descripcion"]).order_by("-fecha", "-creado").first()
+        )
+        if ultimo:
+            plantillas.append({
+                "descripcion": ultimo.descripcion, "categoria": ultimo.categoria, "monto": ultimo.monto,
+            })
+    return plantillas
+
+
+# a que grupo de ingresos (categorias de Producto) corresponde cada categoria de Gasto:
+# los insumos de cocina (pollo, papa, vegetales, aceite, condimentos) se cocinan todos
+# juntos para pollo/combos/acompanamientos, asi que no se pueden separar mas fino que eso;
+# "otros" (alquiler, sueldos, etc.) no se puede atribuir a un grupo de venta especifico.
+_GRUPO_DE_CATEGORIA_GASTO = {
+    "pollo": "comida", "papa": "comida", "vegetales": "comida",
+    "aceite": "comida", "condimentos": "comida",
+    "bebidas": "bebidas",
+    "otros": None,
+}
+_CATEGORIAS_PRODUCTO_POR_GRUPO = {
+    "comida": ("combos", "pollo", "acompanamientos"),
+    "bebidas": ("bebidas", "gaseosas"),
+}
+
+
+def _margen_por_grupo(gastos, por_producto):
+    """Ingresos vs gastos separados en 'Comida' y 'Bebidas', para saber cual de los dos
+    deja mas margen en vez de un solo numero global. El costo de las bebidas/gaseosas
+    vendidas se calcula solo (cantidad vendida x precio de compra cargado en el
+    inventario), sin que el dueno tenga que cargarlo a mano como Gasto. Los gastos que
+    no se pueden atribuir a ninguno de los dos (alquiler, sueldos...) se muestran aparte."""
+    precios_compra = dict(
+        Producto.objects.filter(categoria__in=("bebidas", "gaseosas"), precio_compra__isnull=False)
+        .values_list("id", "precio_compra")
+    )
+    costo_bebidas_vendidas = sum(
+        v["cantidad"] * float(precios_compra[k])
+        for k, v in por_producto.items() if isinstance(k, int) and k in precios_compra
+    )
+
+    grupos = []
+    for grupo, nombre in [("comida", "Comida (pollo, combos, acompañamientos)"), ("bebidas", "Bebidas y gaseosas")]:
+        categorias = _CATEGORIAS_PRODUCTO_POR_GRUPO[grupo]
+        ingresos = sum(v["ingresos"] for v in por_producto.values() if v["categoria"] in categorias)
+        gasto_grupo = sum(float(g.monto) for g in gastos if _GRUPO_DE_CATEGORIA_GASTO.get(g.categoria) == grupo)
+        if grupo == "bebidas":
+            gasto_grupo += costo_bebidas_vendidas
+        ganancia = ingresos - gasto_grupo
+        margen = round(ganancia / ingresos * 100) if ingresos else None
+        grupos.append({
+            "nombre": nombre, "ingresos": ingresos, "gastos": gasto_grupo, "ganancia": ganancia, "margen": margen,
+        })
+
+    gastos_generales = sum(float(g.monto) for g in gastos if _GRUPO_DE_CATEGORIA_GASTO.get(g.categoria) is None)
+    return grupos, gastos_generales
+
+
 @login_required
 @user_passes_test(es_admin)
 def reportes(request):
+    _generar_gastos_recurrentes(request.user)
+
     rango, desde, hasta, etiqueta, ancla = _rango_fechas(request)
     hoy = timezone.localdate()
     ordenes = list(_ordenes_periodo(desde, hasta))
@@ -785,6 +899,9 @@ def reportes(request):
 
     # ---- gastos de materia prima vs ingresos, del periodo que se esta viendo ----
     financiero = _resumen_financiero(desde, hasta, actual["ingresos"])
+    financiero_variable = _resumen_financiero_variable(financiero, actual["ingresos"])
+    margen_grupos, gastos_generales = _margen_por_grupo(financiero["gastos"], por_producto)
+    plantillas_gasto = _plantillas_gasto()
 
     # ---- ganancia del mes en curso: fija, no cambia con el selector dia/semana/mes,
     # para que el dueño siempre pueda ver de ahi cuanto hay para repartir de sueldos ----
@@ -810,13 +927,19 @@ def reportes(request):
             "items": _delta(actual["items"], anterior["items"]),
         },
         "titulo_serie": titulo_serie,
-        "datos": {"serie": serie, "top": top_productos},
+        "datos": {"serie": serie, "top": top_productos, "margenes": margen_grupos},
         "desglose": desglose,
         "inventario": inventario,
         "todas": todas,
         "financiero": financiero,
+        "financiero_variable": financiero_variable,
         "mes_actual": mes_actual,
         "categorias_gasto": Gasto.CATEGORIAS,
+        "margen_grupos": margen_grupos,
+        "gastos_generales": gastos_generales,
+        "plantillas_gasto": plantillas_gasto,
+        "gastos_recurrentes": GastoRecurrente.objects.all(),
+        "tipos_gasto_fijo": GastoRecurrente.TIPOS,
     }
     return render(request, "pedidos/reportes.html", contexto)
 
@@ -864,6 +987,79 @@ def eliminar_gasto(request, gasto_id):
 @login_required
 @user_passes_test(es_admin)
 @require_POST
+def agregar_gasto_recurrente(request):
+    """Crea (o actualiza) una plantilla de gasto fijo mensual desde el dashboard: el
+    propio sistema genera el Gasto de cada mes a partir de ella.
+
+    Los tipos predefinidos (luz, agua, internet, alquiler, sueldos) son unicos: si ya
+    existe uno y el dueno vuelve a cargarlo (ej. cambio el monto de la luz), se
+    actualiza el mismo en vez de crear un duplicado que generaria el doble cada mes.
+    "Otros" es libre: cada envio crea uno nuevo con el nombre que haya escrito."""
+    tipo = request.POST.get("tipo", "otros")
+    if tipo not in dict(GastoRecurrente.TIPOS):
+        tipo = "otros"
+    nombre = (
+        request.POST.get("nombre_otro", "").strip() if tipo == "otros"
+        else dict(GastoRecurrente.TIPOS)[tipo]
+    )
+    monto = request.POST.get("monto", "").strip()
+    dia_mes = request.POST.get("dia_mes", "1").strip()
+
+    try:
+        monto = round(float(monto), 2)
+    except ValueError:
+        monto = 0
+    try:
+        dia_mes = max(1, min(31, int(dia_mes)))
+    except ValueError:
+        dia_mes = 1
+
+    if nombre and monto > 0:
+        if tipo == "otros":
+            GastoRecurrente.objects.create(tipo=tipo, nombre=nombre, categoria="otros", monto=monto, dia_mes=dia_mes)
+            verbo = "Creo"
+        else:
+            _, creado = GastoRecurrente.objects.update_or_create(
+                tipo=tipo,
+                defaults={"nombre": nombre, "categoria": "otros", "monto": monto, "dia_mes": dia_mes, "activo": True},
+            )
+            verbo = "Creo" if creado else "Actualizo"
+        registrar(request.user, f"{verbo} el gasto fijo '{nombre}' (${monto:.2f}/mes, dia {dia_mes})")
+
+    volver = reverse("reportes") + "?" + request.POST.get("volver", "rango=dia")
+    return redirect(volver)
+
+
+@login_required
+@user_passes_test(es_admin)
+@require_POST
+def toggle_gasto_recurrente(request, recurrente_id):
+    """Pausa/reactiva un gasto fijo sin borrarlo (ej: se cerro un contrato de internet
+    pero se puede volver a activar mas adelante)."""
+    recurrente = get_object_or_404(GastoRecurrente, id=recurrente_id)
+    recurrente.activo = not recurrente.activo
+    recurrente.save()
+    registrar(request.user, f"{'Activo' if recurrente.activo else 'Pauso'} el gasto fijo '{recurrente.nombre}'")
+
+    volver = reverse("reportes") + "?" + request.POST.get("volver", "rango=dia")
+    return redirect(volver)
+
+
+@login_required
+@user_passes_test(es_admin)
+@require_POST
+def eliminar_gasto_recurrente(request, recurrente_id):
+    recurrente = get_object_or_404(GastoRecurrente, id=recurrente_id)
+    registrar(request.user, f"Elimino el gasto fijo '{recurrente.nombre}' (${recurrente.monto:.2f}/mes)")
+    recurrente.delete()
+
+    volver = reverse("reportes") + "?" + request.POST.get("volver", "rango=dia")
+    return redirect(volver)
+
+
+@login_required
+@user_passes_test(es_admin)
+@require_POST
 def actualizar_stock(request):
     """Guarda el inventario de bebidas/gaseosas editado en el dashboard."""
     cambios = []
@@ -873,11 +1069,22 @@ def actualizar_stock(request):
             stock = max(0, int(request.POST.get(f"stock_{p.id}", "") or 0))
         except ValueError:
             stock = p.stock or 0
-        if controla != p.controla_stock or (controla and stock != (p.stock or 0)):
+        texto_compra = request.POST.get(f"precio_compra_{p.id}", "").strip()
+        try:
+            precio_compra = Decimal(texto_compra).quantize(Decimal("0.01")) if texto_compra else None
+        except InvalidOperation:
+            precio_compra = p.precio_compra
+
+        cambio_precio = precio_compra != p.precio_compra
+        if controla != p.controla_stock or (controla and stock != (p.stock or 0)) or cambio_precio:
             p.controla_stock = controla
             p.stock = stock if controla else None
+            p.precio_compra = precio_compra
             p.save()
-            cambios.append(f"{p.nombre}: {stock if controla else 'sin control'}")
+            detalle = f"{p.nombre}: {stock if controla else 'sin control'}"
+            if cambio_precio:
+                detalle += f", compra ${precio_compra:.2f}" if precio_compra is not None else ", sin precio de compra"
+            cambios.append(detalle)
     if cambios:
         registrar(request.user, "Actualizo inventario - " + ", ".join(cambios))
 
