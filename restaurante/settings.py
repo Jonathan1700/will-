@@ -52,11 +52,14 @@ INSTALLED_APPS = [
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
-    'cloudinary_storage',
     'django.contrib.staticfiles',
     'cloudinary',
     'pedidos',
 ]
+# ojo: 'cloudinary_storage' (el paquete django-cloudinary-storage) a proposito NO esta en
+# INSTALLED_APPS. Solo usamos su clase MediaCloudinaryStorage (import normal, no necesita
+# ser app) para las fotos de producto; si se registra como app, su propio 'collectstatic'
+# reemplaza al de Django y deja de copiar los estaticos (CSS, iconos) al hacer deploy.
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -158,8 +161,23 @@ CLOUDINARY_STORAGE = {
     'API_KEY': os.environ.get('CLOUDINARY_API_KEY', ''),
     'API_SECRET': os.environ.get('CLOUDINARY_API_SECRET', ''),
 }
-if CLOUDINARY_STORAGE['CLOUD_NAME']:
-    DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
+
+# Django 6 ya no lee DEFAULT_FILE_STORAGE/STATICFILES_STORAGE (settings viejos):
+# hay que armar STORAGES a mano. Los estaticos (CSS, iconos) siempre quedan con el
+# backend normal de Django/Vercel; solo el storage "default" (media) cambia a Cloudinary
+# cuando hay credenciales.
+STORAGES = {
+    'default': {
+        'BACKEND': (
+            'cloudinary_storage.storage.MediaCloudinaryStorage'
+            if CLOUDINARY_STORAGE['CLOUD_NAME']
+            else 'django.core.files.storage.FileSystemStorage'
+        ),
+    },
+    'staticfiles': {
+        'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage',
+    },
+}
 
 
 # Email
