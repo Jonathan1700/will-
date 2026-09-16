@@ -86,6 +86,11 @@ VARIANTES = {
         ("Arroz", "Blanco,Moro"),
         ("Menestra", "Lenteja,Frejol"),
     ],
+    # el combo de arroz y menestra tambien deja elegir; el de papas y maduros no lleva variantes
+    "1/8 Pollo a la brasa con arroz y menestra": [
+        ("Arroz", "Blanco,Moro"),
+        ("Menestra", "Lenteja,Frejol"),
+    ],
 }
 
 
