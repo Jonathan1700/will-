@@ -93,32 +93,42 @@ def post_login(request):
 def elegir_mesa(request):
     mesas = Mesa.objects.all().order_by("numero")
 
-    # pedidos (cuentas) que cocina ya dejo listos y el mesero todavia no llevo a la mesa.
-    # Cada cuenta va apareciendo sola: asi el mesero sabe si salio el pedido 1 o el 2.
+    # pedidos (cuentas) que cocina ya dejo listos, mas las ventas directas ya confirmadas,
+    # que el mesero todavia no llevo a la mesa. Se agrupan por mesa+cuenta: si la misma
+    # cuenta tiene un pedido de cocina Y una venta directa (ej: ya estaban comiendo y
+    # pidieron una gaseosa suelta), aparecen juntas en una sola tarjeta con un solo total,
+    # para que el mesero cobre todo de una vez en vez de sumar dos tarjetas separadas.
     estados = (
-        EstadoCuentaOrden.objects.filter(
-            listo=True, entregado=False,
-            orden__estado__in=["enviada", "entregada"],
-            orden__es_venta_directa=False,
-        )
+        EstadoCuentaOrden.objects.filter(listo=True, entregado=False)
         .select_related("orden", "orden__mesa")
         .prefetch_related("orden__items__producto", "orden__items__acompanamiento")
         .order_by("orden__enviado_a_cocina", "cuenta")
     )
 
-    pendientes = []
+    grupos = {}
     for ec in estados:
         items = [i for i in ec.orden.items.all() if i.cuenta == ec.cuenta]
-        pendientes.append({
-            "orden": ec.orden,
-            "cuenta": ec.cuenta,
-            "items": items,
-            "total": sum(i.subtotal() for i in items),
+        clave = (ec.orden.mesa_id, ec.cuenta)
+        grupo = grupos.setdefault(clave, {
+            "mesa": ec.orden.mesa, "cuenta": ec.cuenta, "items": [], "total": 0,
+            "tiene_cocina": False, "tiene_directo": False,
         })
+        grupo["items"].extend(items)
+        grupo["total"] += sum(i.subtotal() for i in items)
+        if ec.orden.es_venta_directa:
+            grupo["tiene_directo"] = True
+        else:
+            grupo["tiene_cocina"] = True
+    pendientes = list(grupos.values())
+    # ids en el mismo formato que ordenes_listas_json, para que el polling de la tablet
+    # detecte cambios aunque la tarjeta agrupada no cambie de cantidad (ej: se agrego una
+    # venta directa a una cuenta que ya tenia un pedido de cocina listo).
+    ids_listas = ",".join(f"{ec.orden_id}-{ec.cuenta}" for ec in estados)
 
     return render(request, "pedidos/elegir_mesa.html", {
         "mesas": mesas,
         "ordenes_listas": pendientes,
+        "ids_listas": ids_listas,
     })
 
 
@@ -183,13 +193,10 @@ def eliminar_cuenta(request, cuenta_id):
 
 
 def ordenes_listas_json(request):
-    """Pedidos (cuenta por cuenta) que cocina ya marco como listos, para avisar a la tablet."""
+    """Pedidos (cuenta por cuenta) que cocina ya marco como listos, mas ventas directas
+    ya confirmadas, para avisar a la tablet."""
     estados = (
-        EstadoCuentaOrden.objects.filter(
-            listo=True, entregado=False,
-            orden__estado__in=["enviada", "entregada"],
-            orden__es_venta_directa=False,
-        )
+        EstadoCuentaOrden.objects.filter(listo=True, entregado=False)
         .select_related("orden__mesa")
     )
     data = [{
@@ -204,19 +211,26 @@ def ordenes_listas_json(request):
 @login_required
 @user_passes_test(es_mesero)
 @require_POST
-def entregar_pedido(request, orden_id, cuenta):
-    """El mesero confirma que ya llevo a la mesa un pedido (cuenta) de la orden.
-    La orden se cierra cuando ya se entregaron todos sus pedidos."""
-    estado = get_object_or_404(EstadoCuentaOrden, orden_id=orden_id, cuenta=cuenta)
-    estado.entregado = True
-    estado.save()
+def entregar_grupo(request, mesa_id, cuenta):
+    """El mesero confirma que ya llevo a la mesa todo lo listo de una cuenta: el pedido
+    de cocina Y la venta directa, si hay de las dos, se entregan y cobran juntas.
+    Cada orden involucrada se cierra cuando ya se entregaron todos sus pedidos."""
+    estados = list(
+        EstadoCuentaOrden.objects.filter(
+            orden__mesa_id=mesa_id, cuenta=cuenta, listo=True, entregado=False,
+        ).select_related("orden", "orden__mesa")
+    )
+    mesa = get_object_or_404(Mesa, id=mesa_id)
 
-    orden = estado.orden
-    if not EstadoCuentaOrden.objects.filter(orden=orden, entregado=False).exists():
-        orden.estado = "cerrada"
-        orden.save()
+    for estado in estados:
+        estado.entregado = True
+        estado.save()
+        orden = estado.orden
+        if not EstadoCuentaOrden.objects.filter(orden=orden, entregado=False).exists():
+            orden.estado = "cerrada"
+            orden.save()
 
-    registrar(request.user, f"Entrego pedido {cuenta} - Mesa {orden.mesa.numero}")
+    registrar(request.user, f"Entrego pedido {cuenta} - Mesa {mesa.numero}")
     return redirect("elegir_mesa")
 
 
@@ -444,7 +458,10 @@ def agregar_item_directo(request, mesa_id, producto_id):
 @user_passes_test(es_mesero)
 @require_POST
 def confirmar_venta_directa(request, orden_id):
-    """Cobra la venta directa: se cierra al instante, nunca pasa por cocina."""
+    """Confirma la venta directa (descuenta stock ya) pero no la cobra todavia: nunca
+    pasa por cocina, pero queda 'lista para entregar' junto con los pedidos de cocina
+    en la pantalla del mesero. Se cobra (orden.estado -> cerrada) recien cuando el
+    mesero marca que ya la entrego, para no contar como venta algo que no salio."""
     orden = get_object_or_404(Orden, id=orden_id, estado="abierta", es_venta_directa=True)
 
     for item in orden.items.all():
@@ -452,11 +469,12 @@ def confirmar_venta_directa(request, orden_id):
             item.producto.stock = max(0, item.producto.stock - item.cantidad)
             item.producto.save()
 
-    orden.estado = "cerrada"
+    orden.estado = "lista"
     orden.enviado_a_cocina = timezone.now()
     orden.save()
+    EstadoCuentaOrden.objects.get_or_create(orden=orden, cuenta=1, defaults={"listo": True})
 
-    registrar(request.user, f"Venta directa #{orden.id} (sin cocina) - Mesa {orden.mesa.numero} - ${orden.total()}")
+    registrar(request.user, f"Confirmo venta directa #{orden.id} (pendiente de entregar) - Mesa {orden.mesa.numero} - ${orden.total()}")
     categoria = request.POST.get("categoria", "combos")
     return redirect(f"{reverse('menu_mesa', args=[orden.mesa.id])}?categoria={categoria}")
 

@@ -192,6 +192,7 @@ class Orden(models.Model):
     ESTADOS = [
         ("abierta", "Abierta"),
         ("enviada", "Enviada a cocina"),
+        ("lista", "Lista para entregar"),  # venta directa confirmada, pendiente de entregar y cobrar
         ("entregada", "Entregada"),
         ("cerrada", "Cerrada"),
     ]

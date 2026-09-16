@@ -236,7 +236,7 @@
                 {% csrf_token %}
                 <input type="hidden" name="categoria" value="{{ categoria_activa }}">
                 <button class="btn-enviar btn-directo-cobrar" {% if orden_directa.items.count == 0 %}disabled{% endif %}>
-                     Cobrar venta directa
+                     Confirmar venta directa
                 </button>
             </form>
         </div>
