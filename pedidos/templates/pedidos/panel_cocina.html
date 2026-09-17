@@ -100,7 +100,7 @@ setInterval(() => {
         .then(r => r.json())
         .then(data => {
             if (data.ordenes.map(o => o.id).join(',') !== firmaActual) {
-                location.reload();
+                recargar();
                 return;
             }
             data.ordenes.forEach(o => {
