@@ -32,7 +32,7 @@
                         <span class="listo-total-fila">${{ p.total }}</span>
                     </div>
                     <p class="listo-fila-detalle">
-                        {% for item in p.items %}{{ item.cantidad }}x {{ item.producto.nombre }}{% if not forloop.last %} · {% endif %}{% endfor %}
+                        {% for item in p.items %}{{ item.cantidad }}x {{ item.producto.nombre }}{% if item.notas %} ({{ item.notas }}){% endif %}{% if not forloop.last %} · {% endif %}{% endfor %}
                     </p>
                     {% if p.recargo_llevar %}<span class="listo-total-llevar">Para llevar: ${{ p.total_llevar|floatformat:2 }}</span>{% endif %}
                 </a>
