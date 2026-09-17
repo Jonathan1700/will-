@@ -111,7 +111,7 @@ def elegir_mesa(request):
         clave = (ec.orden.mesa_id, ec.cuenta)
         grupo = grupos.setdefault(clave, {
             "mesa": ec.orden.mesa, "cuenta": ec.cuenta, "items": [], "total": 0,
-            "tiene_cocina": False, "tiene_directo": False,
+            "tiene_cocina": False, "tiene_directo": False, "recargo_llevar": 0,
         })
         grupo["items"].extend(items)
         grupo["total"] += sum(i.subtotal() for i in items)
@@ -119,7 +119,15 @@ def elegir_mesa(request):
             grupo["tiene_directo"] = True
         else:
             grupo["tiene_cocina"] = True
+        if ec.orden.para_llevar:
+            unidades = sum(
+                i.cantidad for i in items if i.producto.categoria in Orden.CATEGORIAS_CON_ENVASE
+            )
+            grupo["recargo_llevar"] += Orden.RECARGO_PARA_LLEVAR * unidades
     pendientes = list(grupos.values())
+    # total ya con el recargo por llevar sumado, para la tarjeta del mesero
+    for grupo in pendientes:
+        grupo["total_llevar"] = grupo["total"] + grupo["recargo_llevar"]
     # ids en el mismo formato que ordenes_listas_json, para que el polling de la tablet
     # detecte cambios aunque la tarjeta agrupada no cambie de cantidad (ej: se agrego una
     # venta directa a una cuenta que ya tenia un pedido de cocina listo).
@@ -232,6 +240,49 @@ def entregar_grupo(request, mesa_id, cuenta):
 
     registrar(request.user, f"Entrego pedido {cuenta} - Mesa {mesa.numero}")
     return redirect("elegir_mesa")
+
+
+@login_required
+@user_passes_test(es_mesero)
+def detalle_pedido(request, mesa_id, cuenta):
+    """Detalle (items, notas, total) de un pedido ya listo que el mesero todavia
+    no lleva a la mesa: a donde va al tocar su tarjeta en 'Listos para llevar a la mesa'."""
+    mesa = get_object_or_404(Mesa, id=mesa_id)
+    estados = list(
+        EstadoCuentaOrden.objects.filter(
+            orden__mesa_id=mesa_id, cuenta=cuenta, listo=True, entregado=False,
+        ).select_related("orden").prefetch_related("orden__items__producto", "orden__items__acompanamiento")
+    )
+    if not estados:
+        return redirect("elegir_mesa")
+
+    items, total, recargo_llevar = [], 0, 0
+    tiene_cocina, tiene_directo = False, False
+    for estado in estados:
+        orden = estado.orden
+        propios = [i for i in orden.items.all() if i.cuenta == cuenta]
+        items.extend(propios)
+        total += sum(i.subtotal() for i in propios)
+        if orden.es_venta_directa:
+            tiene_directo = True
+        else:
+            tiene_cocina = True
+        if orden.para_llevar:
+            unidades = sum(
+                i.cantidad for i in propios if i.producto.categoria in Orden.CATEGORIAS_CON_ENVASE
+            )
+            recargo_llevar += Orden.RECARGO_PARA_LLEVAR * unidades
+
+    return render(request, "pedidos/detalle_pedido.html", {
+        "mesa": mesa,
+        "cuenta": cuenta,
+        "items": items,
+        "total": total,
+        "recargo_llevar": recargo_llevar,
+        "total_llevar": total + recargo_llevar,
+        "tiene_cocina": tiene_cocina,
+        "tiene_directo": tiene_directo,
+    })
 
 
 @login_required

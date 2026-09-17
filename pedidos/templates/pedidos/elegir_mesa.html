@@ -15,20 +15,25 @@
     <div class="listos-grid">
         {% for p in ordenes_listas %}
         <div class="listo-card">
-            <div class="listo-head">
-                <span class="listo-mesa">
-                    Mesa {{ p.mesa.numero }} ·
-                    {% if p.tiene_cocina and p.tiene_directo %}Pedido {{ p.cuenta }} + venta directa
-                    {% elif p.tiene_directo %}Venta directa
-                    {% else %}Pedido {{ p.cuenta }}{% endif %}
-                </span>
-                <span class="listo-tag">Listo</span>
-            </div>
-            <p class="listo-detalle">
-                {% for item in p.items %}{{ item.cantidad }}x {{ item.producto.nombre }}{% if item.notas %} ({{ item.notas }}){% endif %}{% if not forloop.last %} · {% endif %}{% endfor %}
-            </p>
+            <a class="listo-link" href="{% url 'detalle_pedido' p.mesa.id p.cuenta %}">
+                <div class="listo-head">
+                    <span class="listo-mesa">
+                        Mesa {{ p.mesa.numero }} ·
+                        {% if p.tiene_cocina and p.tiene_directo %}Pedido {{ p.cuenta }} + venta directa
+                        {% elif p.tiene_directo %}Venta directa
+                        {% else %}Pedido {{ p.cuenta }}{% endif %}
+                    </span>
+                    <span class="listo-tag">Listo</span>
+                </div>
+                <p class="listo-detalle">
+                    {% for item in p.items %}{{ item.cantidad }}x {{ item.producto.nombre }}{% if item.notas %} ({{ item.notas }}){% endif %}{% if not forloop.last %} · {% endif %}{% endfor %}
+                </p>
+            </a>
             <div class="listo-foot">
-                <span class="listo-total">${{ p.total }}</span>
+                <span class="listo-totales">
+                    <span class="listo-total">${{ p.total }}</span>
+                    {% if p.recargo_llevar %}<span class="listo-total-llevar">Para llevar: ${{ p.total_llevar|floatformat:2 }}</span>{% endif %}
+                </span>
                 <form method="post" action="{% url 'entregar_grupo' p.mesa.id p.cuenta %}">
                     {% csrf_token %}
                     <button class="listo-btn">Ya la entregue</button>

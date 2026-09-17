@@ -23,6 +23,7 @@ urlpatterns = [
     path("api/disponibilidad/", views.disponibilidad_json, name="disponibilidad_json"),
     path("api/listas/", views.ordenes_listas_json, name="ordenes_listas_json"),
     path("mesa/<int:mesa_id>/cuenta/<int:cuenta>/entregar/", views.entregar_grupo, name="entregar_grupo"),
+    path("mesa/<int:mesa_id>/cuenta/<int:cuenta>/detalle/", views.detalle_pedido, name="detalle_pedido"),
 
     # cocina xd
     path("cocina/", views.panel_cocina, name="panel_cocina"),
