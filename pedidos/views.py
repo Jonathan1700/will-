@@ -34,6 +34,10 @@ def es_disponibilidad(user):
     return user.groups.filter(name="Disponibilidad").exists() or user.is_superuser
 
 
+def es_mesero_o_disponibilidad(user):
+    return es_mesero(user) or es_disponibilidad(user)
+
+
 def es_admin(user):
     return user.groups.filter(name="Admin").exists() or user.is_superuser
 
@@ -159,6 +163,25 @@ def elegir_mesa(request):
         "mesas_listas": mesas_listas,
         "ids_listas": ids_listas,
     })
+
+
+@login_required
+@user_passes_test(es_mesero)
+def disponibilidad_bebidas(request):
+    """El mesero prende/apaga bebidas y gaseosas (el sabe si se acabo algo en la nevera
+    del salon antes que cocina, que ya no ve esto en su panel)."""
+    productos = list(
+        Producto.objects.filter(categoria__in=["bebidas", "gaseosas"]).order_by("categoria", "nombre")
+    )
+    grupos = []
+    for valor, nombre in Producto.CATEGORIAS:
+        if valor not in ("bebidas", "gaseosas"):
+            continue
+        lista = [p for p in productos if p.categoria == valor]
+        if lista:
+            grupos.append((nombre, lista))
+
+    return render(request, "pedidos/disponibilidad_bebidas.html", {"grupos": grupos})
 
 
 @login_required
@@ -635,28 +658,42 @@ def panel_cocina(request):
     ordenes = list(
         Orden.objects.filter(estado="enviada")
         .order_by("enviado_a_cocina")
+        .select_related("mesa")
         .prefetch_related("items__producto", "items__acompanamiento", "cuentas_estado")
     )
 
-    # cada orden llega dividida en 'pedidos' (las cuentas de la mesa): cocina arma cada
-    # uno por separado y los marca como listos uno a uno, igual que el mesero los separo.
+    # agrupa por mesa (normalmente una sola orden, pero puede haber mas de una ronda
+    # enviada a la vez): cada pedido (cuenta) es su propia tarjeta chica, en fila
+    # horizontal dentro del bloque de su mesa, en vez de una tarjeta grande por orden.
+    mesas = []
+    indice_mesa = {}
     for orden in ordenes:
         estados = {e.cuenta: e for e in orden.cuentas_estado.all()}
-        pedidos = []
+        entrada = indice_mesa.setdefault(orden.mesa_id, {"mesa": orden.mesa, "pedidos": []})
+        if entrada not in mesas:
+            mesas.append(entrada)
         for numero in sorted({item.cuenta for item in orden.items.all()}):
             items_cuenta = [item for item in orden.items.all() if item.cuenta == numero]
             estado = estados.get(numero)
-            pedidos.append({
+            entrada["pedidos"].append({
+                "orden_id": orden.id,
                 "numero": numero,
                 "listo": bool(estado and estado.listo),
                 "para_llevar": bool(estado and estado.para_llevar),
                 "items": items_cuenta,
                 "total": sum(item.subtotal() for item in items_cuenta),
+                "minutos": orden.minutos_en_espera(),
             })
-        orden.pedidos_cocina = pedidos
+
+    for entrada in mesas:
+        un_solo_pedido = len(entrada["pedidos"]) == 1
+        for pedido in entrada["pedidos"]:
+            pedido["un_solo_pedido"] = un_solo_pedido
+        entrada["total"] = sum(p["total"] for p in entrada["pedidos"])
 
     return render(request, "pedidos/panel_cocina.html", {
-        "ordenes": ordenes,
+        "mesas": mesas,
+        "orden_ids": [o.id for o in ordenes],
     })
 
 
@@ -665,11 +702,14 @@ def panel_cocina(request):
 def panel_disponibilidad(request):
     """Pantalla aparte (pensada para celular) donde 'cocinero2' prende/apaga combos,
     pollo, acompañamientos y controla el stock de presas: cocinero1 (panel_cocina) ya
-    no ve nada de esto, solo las comandas."""
+    no ve nada de esto, solo las comandas. Bebidas/gaseosas no van aca: esas las
+    controla el mesero (ver disponibilidad_bebidas), que es quien las tiene a mano."""
     # disponibilidad agrupada por categoria, en el mismo orden que las pestañas del mesero
-    productos = list(Producto.objects.all().order_by("nombre"))
+    productos = list(Producto.objects.exclude(categoria__in=["bebidas", "gaseosas"]).order_by("nombre"))
     grupos = []
     for valor, nombre in Producto.CATEGORIAS:
+        if valor in ("bebidas", "gaseosas"):
+            continue
         lista = [p for p in productos if p.categoria == valor]
         if lista:
             grupos.append((nombre, lista))
@@ -713,7 +753,7 @@ def marcar_pedido_listo(request, orden_id, cuenta):
 
 
 @login_required
-@user_passes_test(es_disponibilidad)
+@user_passes_test(es_mesero_o_disponibilidad)
 @require_POST
 def toggle_disponibilidad(request, producto_id):
     producto = get_object_or_404(Producto, id=producto_id)

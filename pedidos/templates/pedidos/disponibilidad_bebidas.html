@@ -1,0 +1,55 @@
+{% extends "pedidos/base.html" %}
+{% block titulo %}Disponibilidad de bebidas{% endblock %}
+{% block contenido %}
+<header class="top">
+    <a href="{% url 'elegir_mesa' %}" class="titulo">Brasas</a>
+    <span class="top-acciones">
+        <button type="button" class="top-fullscreen" id="btn-fullscreen" aria-label="Pantalla completa">⛶</button>
+        <a href="{% url 'logout' %}" class="mesa" style="text-decoration:none;">Salir</a>
+    </span>
+</header>
+<div class="app">
+{% csrf_token %}
+<h2 class="seccion-titulo" style="margin-top:0;">Disponibilidad de bebidas</h2>
+
+{% for nombre_cat, lista in grupos %}
+<h3 class="disp-cat">{{ nombre_cat }}</h3>
+<div class="disp-grid" style="margin-bottom:22px;">
+    {% for producto in lista %}
+    <button type="button" class="disp-card simple {% if producto.disponible %}on{% else %}off{% endif %}"
+            data-url-toggle="{% url 'toggle_disponibilidad' producto.id %}">
+        <span class="disp-media">{% if producto.imagen %}<img src="{{ producto.imagen.url }}" alt="">{% elif producto.categoria == 'gaseosas' %}🥤{% else %}🧃{% endif %}</span>
+        <span class="disp-nombre">{{ producto.nombre }}</span>
+        <span class="disp-estado">{% if producto.disponible %}Disponible{% else %}Agotado{% endif %}</span>
+    </button>
+    {% endfor %}
+</div>
+{% empty %}
+<p class="menu-vacio">No hay bebidas ni gaseosas cargadas todavia.</p>
+{% endfor %}
+</div>
+
+<script>
+// Toque a toque: agotado/disponible al instante, sin recargar.
+const csrftokenBebidas = () => document.querySelector('[name=csrfmiddlewaretoken]').value;
+
+document.querySelectorAll('.disp-card.simple').forEach(card => {
+    card.addEventListener('click', () => {
+        if (card.disabled) return;
+        card.disabled = true;
+        fetch(card.dataset.urlToggle, {
+            method: 'POST', headers: { 'X-CSRFToken': csrftokenBebidas() },
+        })
+            .then(r => r.json())
+            .then(d => {
+                card.disabled = false;
+                if (!d.ok) return;
+                card.classList.toggle('on', d.disponible);
+                card.classList.toggle('off', !d.disponible);
+                card.querySelector('.disp-estado').textContent = d.disponible ? 'Disponible' : 'Agotado';
+            })
+            .catch(() => { card.disabled = false; });
+    });
+});
+</script>
+{% endblock %}

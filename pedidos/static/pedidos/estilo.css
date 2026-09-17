@@ -60,6 +60,21 @@ header.top .top-fullscreen {
 
 header.top .top-fullscreen[hidden] { display: none; }
 
+header.top .top-disponibilidad {
+    height: 34px;
+    display: inline-flex;
+    align-items: center;
+    padding: 0 12px;
+    border: 1.5px solid rgba(245, 239, 226, .45);
+    border-radius: 8px;
+    background: transparent;
+    color: var(--cream);
+    font-size: 12.5px;
+    font-weight: 700;
+    text-decoration: none;
+    white-space: nowrap;
+}
+
 header.top .top-salir {
     color: var(--cream);
     font-size: 12px;
@@ -342,35 +357,17 @@ header.top .mesa {
     min-width: 0;
 }
 
-.comanda-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: baseline;
-    margin-bottom: 8px;
-}
-
-.comanda-header .mesa-num {
-    font-family: 'Anton', sans-serif;
-    font-size: 20px;
-    color: var(--navy);
-}
-
 .tiempo-tag {
     font-size: 11px;
     font-weight: 700;
     padding: 3px 8px;
     border-radius: 3px;
+    white-space: nowrap;
 }
 
 .tiempo-tag.reciente { background: #E5F0E1; color: #2F5C2F; }
 .tiempo-tag.medio { background: #FBF0DC; color: var(--mustard-dark); }
 .tiempo-tag.tarde { background: var(--danger-bg); color: var(--danger); }
-
-.comanda-item {
-    font-size: 13px;
-    padding: 4px 0;
-    border-bottom: 1px dashed #D9D0BC;
-}
 
 .seccion-titulo {
     font-family: 'Anton', sans-serif;
@@ -381,17 +378,6 @@ header.top .mesa {
 }
 
 /* ---- comanda tipo factura ---- */
-
-.ticket-meta {
-    display: flex;
-    justify-content: space-between;
-    font-size: 11.5px;
-    font-weight: 600;
-    color: var(--ink-soft);
-    padding-bottom: 8px;
-    border-bottom: 1px dashed #C9BFA8;
-    margin-bottom: 6px;
-}
 
 table.ticket {
     width: 100%;
@@ -456,49 +442,70 @@ table.ticket .t-num {
     letter-spacing: 0;
 }
 
-/* ---- comanda dividida por pedidos (cuentas de la mesa) ---- */
-.comanda-pedido {
-    margin-top: 12px;
-    padding-top: 10px;
-    border-top: 1px dashed #C9BFA8;
+/* ---- cocina: pedidos agrupados por mesa, en fila horizontal (hasta ~4 comodas,
+   si hay mas se encogen un poco y las que no entran bajan a una fila dentro del
+   mismo bloque de esa mesa - nunca se mezclan con otra mesa) ---- */
+.comanda-mesa {
+    margin-bottom: 28px;
 }
 
-.comanda-pedido:first-of-type {
-    margin-top: 0;
-    padding-top: 0;
-    border-top: none;
+.comanda-mesa-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 10px;
+    padding-bottom: 6px;
+    border-bottom: 2px solid var(--navy);
+}
+
+.comanda-mesa-head .mesa-num {
+    font-family: 'Anton', sans-serif;
+    font-size: 22px;
+    color: var(--navy);
+}
+
+.comanda-mesa-total {
+    font-family: 'Anton', sans-serif;
+    font-size: 17px;
+    color: var(--navy);
+}
+
+.comanda-fila {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px;
+}
+
+.comanda-pedido {
+    flex: 1 1 260px;
+    min-width: 200px;
+    max-width: 340px;
+    background: var(--card);
+    border: 1.5px solid var(--navy);
+    border-radius: 6px;
+    padding: 12px 14px;
 }
 
 .comanda-pedido-listo {
     background: #F5FAF4;
-    border-radius: 6px;
-    padding: 8px 10px;
+    border-color: var(--ok);
 }
 
 .ticket-cuenta-head {
     display: flex;
-    justify-content: space-between;
+    flex-wrap: wrap;
     align-items: center;
+    gap: 6px;
     margin-bottom: 6px;
+}
+
+.ticket-cuenta-head .pedido-num {
+    margin-right: auto;
 }
 
 .pedido-num {
     font-family: 'Anton', sans-serif;
     font-size: 16px;
-    color: var(--navy);
-}
-
-.comanda-total {
-    display: flex;
-    justify-content: space-between;
-    align-items: baseline;
-    margin-top: 14px;
-    padding-top: 10px;
-    border-top: 2px solid var(--navy);
-    font-size: 12px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.4px;
     color: var(--navy);
 }
 
@@ -1732,17 +1739,10 @@ a.btn-enviar-link {
 }
 
 .comandas {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 16px;
-    align-content: start;
     padding: 18px 18px 40px;
 }
 
-.comandas .comanda { margin-bottom: 0; }
-
 .comandas-vacio {
-    grid-column: 1 / -1;
     color: var(--ink-soft);
     padding: 24px 4px;
 }
@@ -1853,13 +1853,10 @@ a.btn-enviar-link {
     color: var(--ink-soft);
 }
 
-/* tablet vertical: comandas en una sola columna */
+/* tablet vertical: una sola columna (las filas de pedidos por mesa ya se
+   encogen/ajustan solas con flex-wrap) */
 @media (max-width: 999px) {
     .cocina { grid-template-columns: 1fr; }
-}
-
-@media (max-width: 640px) {
-    .comandas { grid-template-columns: 1fr; }
 }
 
 /* =====================================================================

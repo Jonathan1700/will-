@@ -11,76 +11,69 @@
 <div class="cocina cocina-sola">
 
 <section class="comandas" aria-label="Pedidos pendientes">
-    {% for orden in ordenes %}
-    <div class="comanda" data-orden-id="{{ orden.id }}">
-        <div class="comanda-header">
-            <span class="mesa-num">Mesa {{ orden.mesa.numero }}</span>
-            {% with min=orden.minutos_en_espera %}
-            <span class="tiempo-tag {% if min < 5 %}reciente{% elif min < 12 %}medio{% else %}tarde{% endif %}">
-                hace {{ min }} min
-            </span>
-            {% endwith %}
+    {% for m in mesas %}
+    <div class="comanda-mesa">
+        <div class="comanda-mesa-head">
+            <span class="mesa-num">Mesa {{ m.mesa.numero }}</span>
+            <span class="comanda-mesa-total">${{ m.total|floatformat:2 }}</span>
         </div>
 
-        <div class="ticket-meta">
-            <span>Orden #{{ orden.id }}</span>
-            <span>{{ orden.enviado_a_cocina|date:"d/m/Y H:i" }}</span>
-        </div>
+        <div class="comanda-fila">
+            {% for pedido in m.pedidos %}
+            <div class="comanda-pedido {% if pedido.listo %}comanda-pedido-listo{% endif %}" data-orden-id="{{ pedido.orden_id }}">
+                <div class="ticket-cuenta-head">
+                    <span class="pedido-num">Pedido {{ pedido.numero }}</span>
+                    {% if pedido.para_llevar %}<span class="chip chip-cambio">🥡 Para llevar</span>{% endif %}
+                    {% if pedido.listo %}<span class="chip chip-ok">✓ Listo</span>{% endif %}
+                    {% with min=pedido.minutos %}
+                    <span class="tiempo-tag {% if min < 5 %}reciente{% elif min < 12 %}medio{% else %}tarde{% endif %}">
+                        hace {{ min }} min
+                    </span>
+                    {% endwith %}
+                </div>
+                <table class="ticket">
+                    <thead>
+                        <tr>
+                            <th class="t-cant">Cant</th>
+                            <th>Producto</th>
+                            <th class="t-num">P. unit</th>
+                            <th class="t-num">Subtotal</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in pedido.items %}
+                        <tr>
+                            <td class="t-cant">{{ item.cantidad }}</td>
+                            <td>
+                                {{ item.producto.nombre }}
+                                {% if item.notas %}<span class="t-nota">{{ item.notas }}</span>{% endif %}
+                                {% if item.acompanamiento %}<span class="t-nota t-cambio">sin {{ item.producto.acompanamiento_incluido|lower }} → {{ item.acompanamiento.nombre }}</span>{% endif %}
+                                {% if item.sin_acompanamientos %}<span class="t-nota t-cambio">sin {{ item.sin_acompanamientos|lower }}</span>{% endif %}
+                                {% for grupo, opcion in item.lista_variantes_elegidas %}<span class="t-nota">{{ grupo }}: {{ opcion }}</span>{% endfor %}
+                                {% if item.despresado %}<span class="t-nota t-cambio">Despresado</span>{% endif %}
+                            </td>
+                            <td class="t-num">${{ item.precio_unitario }}</td>
+                            <td class="t-num">${{ item.subtotal }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
 
-        {% for pc in orden.pedidos_cocina %}
-        <section class="comanda-pedido {% if pc.listo %}comanda-pedido-listo{% endif %}">
-            <div class="ticket-cuenta-head">
-                <span class="pedido-num">Pedido {{ pc.numero }}</span>
-                {% if pc.para_llevar %}<span class="chip chip-cambio">🥡 Para llevar</span>{% endif %}
-                {% if pc.listo %}<span class="chip chip-ok">✓ Listo</span>{% endif %}
+                <div class="ticket-total">
+                    <span>Total pedido {{ pedido.numero }}</span>
+                    <span class="ticket-total-monto">${{ pedido.total }}</span>
+                </div>
+
+                {% if not pedido.listo %}
+                <form method="post" action="{% url 'marcar_pedido_listo' pedido.orden_id pedido.numero %}" style="margin-top:12px;">
+                    {% csrf_token %}
+                    <button class="btn">
+                        {% if pedido.un_solo_pedido %}Marcar como listo{% else %}Marcar listo pedido {{ pedido.numero }}{% endif %}
+                    </button>
+                </form>
+                {% endif %}
             </div>
-            <table class="ticket">
-                <thead>
-                    <tr>
-                        <th class="t-cant">Cant</th>
-                        <th>Producto</th>
-                        <th class="t-num">P. unit</th>
-                        <th class="t-num">Subtotal</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for item in pc.items %}
-                    <tr>
-                        <td class="t-cant">{{ item.cantidad }}</td>
-                        <td>
-                            {{ item.producto.nombre }}
-                            {% if item.notas %}<span class="t-nota">{{ item.notas }}</span>{% endif %}
-                            {% if item.acompanamiento %}<span class="t-nota t-cambio">sin {{ item.producto.acompanamiento_incluido|lower }} → {{ item.acompanamiento.nombre }}</span>{% endif %}
-                            {% if item.sin_acompanamientos %}<span class="t-nota t-cambio">sin {{ item.sin_acompanamientos|lower }}</span>{% endif %}
-                            {% for grupo, opcion in item.lista_variantes_elegidas %}<span class="t-nota">{{ grupo }}: {{ opcion }}</span>{% endfor %}
-                            {% if item.despresado %}<span class="t-nota t-cambio">Despresado</span>{% endif %}
-                        </td>
-                        <td class="t-num">${{ item.precio_unitario }}</td>
-                        <td class="t-num">${{ item.subtotal }}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-
-            <div class="ticket-total">
-                <span>Total pedido {{ pc.numero }}</span>
-                <span class="ticket-total-monto">${{ pc.total }}</span>
-            </div>
-
-            {% if not pc.listo %}
-            <form method="post" action="{% url 'marcar_pedido_listo' orden.id pc.numero %}" style="margin-top:12px;">
-                {% csrf_token %}
-                <button class="btn">
-                    {% if orden.pedidos_cocina|length == 1 %}Marcar como listo{% else %}Marcar listo pedido {{ pc.numero }}{% endif %}
-                </button>
-            </form>
-            {% endif %}
-        </section>
-        {% endfor %}
-
-        <div class="comanda-total">
-            <span>Total mesa</span>
-            <span class="ticket-total-monto">${{ orden.total }}</span>
+            {% endfor %}
         </div>
     </div>
     {% empty %}
@@ -93,7 +86,7 @@
 <script>
 // Revisa cada 8s: si llegaron o salieron pedidos recarga, si no solo refresca
 // los minutos de espera.
-const firmaActual = [{% for orden in ordenes %}{{ orden.id }},{% endfor %}].join(',');
+const firmaActual = "{{ orden_ids|join:',' }}";
 
 setInterval(() => {
     fetch("{% url 'ordenes_pendientes_json' %}")
@@ -104,10 +97,10 @@ setInterval(() => {
                 return;
             }
             data.ordenes.forEach(o => {
-                const tag = document.querySelector(`[data-orden-id="${o.id}"] .tiempo-tag`);
-                if (!tag) return;
-                tag.textContent = `hace ${o.minutos} min`;
-                tag.className = 'tiempo-tag ' + (o.minutos < 5 ? 'reciente' : o.minutos < 12 ? 'medio' : 'tarde');
+                document.querySelectorAll(`[data-orden-id="${o.id}"] .tiempo-tag`).forEach(tag => {
+                    tag.textContent = `hace ${o.minutos} min`;
+                    tag.className = 'tiempo-tag ' + (o.minutos < 5 ? 'reciente' : o.minutos < 12 ? 'medio' : 'tarde');
+                });
             });
         });
 }, 8000);
