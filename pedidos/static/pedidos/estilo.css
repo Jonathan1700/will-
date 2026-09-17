@@ -1715,7 +1715,7 @@ a.btn-enviar-link {
 }
 
 /* =====================================================================
-   PANEL DE COCINA - comandas (2 por fila) | disponibilidad fija a la derecha
+   PANEL DE COCINA (cocinero1) - solo comandas, de 2 en 2
    ===================================================================== */
 
 .cocina {
@@ -1723,6 +1723,12 @@ a.btn-enviar-link {
     grid-template-columns: minmax(0, 1fr) 380px;
     align-items: start;
     min-height: calc(100vh - var(--top-h));
+}
+
+/* cocinero1 ya no comparte pantalla con disponibilidad (eso es cocinero2, aparte):
+   las comandas ocupan todo el ancho. */
+.cocina-sola {
+    grid-template-columns: 1fr;
 }
 
 .comandas {
@@ -1740,36 +1746,6 @@ a.btn-enviar-link {
     color: var(--ink-soft);
     padding: 24px 4px;
 }
-
-.control {
-    position: sticky;
-    top: var(--top-h);
-    height: calc(100vh - var(--top-h));
-    overflow-y: auto;
-    background: #FFFFFF;
-    border-left: 1px solid var(--line);
-    padding: 14px 16px 24px;
-}
-
-.control .seccion-titulo { margin-top: 0; }
-.control .disp-cat:first-of-type { margin-top: 4px; }
-
-/* tarjetas mas compactas dentro de la columna */
-.control .disp-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 8px;
-}
-
-.control .disp-card {
-    padding: 9px 8px;
-    gap: 4px;
-    border-radius: 12px;
-}
-
-.control .disp-media { width: 36px; height: 36px; font-size: 18px; }
-.control .disp-nombre { font-size: 11.5px; }
-.control .disp-estado { font-size: 9px; padding: 2px 8px; }
-.control form { display: contents; }
 
 /* ---- "salieron N pollos enteros": reparte las presas sola, sin tocar cada rueda ---- */
 .agregar-pollos {
@@ -1877,16 +1853,9 @@ a.btn-enviar-link {
     color: var(--ink-soft);
 }
 
-/* tablet vertical: una columna, comandas de 2 en 2 y el control debajo */
+/* tablet vertical: comandas en una sola columna */
 @media (max-width: 999px) {
     .cocina { grid-template-columns: 1fr; }
-    .control {
-        position: static;
-        height: auto;
-        border-left: none;
-        border-top: 1px solid var(--line);
-    }
-    .control .disp-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
 }
 
 @media (max-width: 640px) {

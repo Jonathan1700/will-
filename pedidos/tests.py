@@ -391,10 +391,13 @@ class ConsumoPiezasTest(TestCase):
     def setUp(self):
         Group.objects.get_or_create(name="Mesero")
         Group.objects.get_or_create(name="Cocina")
+        Group.objects.get_or_create(name="Disponibilidad")
         self.mesero = User.objects.create_user("mesero", password="1234")
         self.mesero.groups.add(Group.objects.get(name="Mesero"))
         self.cocina = User.objects.create_user("cocina", password="1234")
         self.cocina.groups.add(Group.objects.get(name="Cocina"))
+        self.disponibilidad = User.objects.create_user("disponibilidad", password="1234")
+        self.disponibilidad.groups.add(Group.objects.get(name="Disponibilidad"))
         self.client.login(username="mesero", password="1234")
 
         self.mesa = Mesa.objects.create(numero=1)
@@ -432,7 +435,7 @@ class ConsumoPiezasTest(TestCase):
 
     def test_agregar_pollos_enteros_reparte_2_de_cada_presa_por_pollo(self):
         self.client.logout()
-        self.client.login(username="cocina", password="1234")
+        self.client.login(username="disponibilidad", password="1234")
         respuesta = self.client.post(reverse("agregar_pollos_enteros"), {"cantidad": "5"})
 
         self.assertEqual(respuesta.status_code, 200)
@@ -440,9 +443,16 @@ class ConsumoPiezasTest(TestCase):
             pieza.refresh_from_db()
             self.assertEqual(pieza.stock, 20)  # 10 + 5*2
 
-    def test_agregar_pollos_enteros_requiere_ser_cocina(self):
+    def test_agregar_pollos_enteros_requiere_ser_disponibilidad(self):
+        """Ni el mesero ni cocinero1 (pedidos) pueden tocar esto: es solo cocinero2."""
         respuesta = self.client.post(reverse("agregar_pollos_enteros"), {"cantidad": "5"})
         self.assertEqual(respuesta.status_code, 302)
+
+        self.client.logout()
+        self.client.login(username="cocina", password="1234")
+        respuesta = self.client.post(reverse("agregar_pollos_enteros"), {"cantidad": "5"})
+        self.assertEqual(respuesta.status_code, 302)
+
         self.pechuga.refresh_from_db()
         self.assertEqual(self.pechuga.stock, 10)
 

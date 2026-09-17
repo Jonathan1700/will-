@@ -30,6 +30,10 @@ def es_cocina(user):
     return user.groups.filter(name="Cocina").exists() or user.is_superuser
 
 
+def es_disponibilidad(user):
+    return user.groups.filter(name="Disponibilidad").exists() or user.is_superuser
+
+
 def es_admin(user):
     return user.groups.filter(name="Admin").exists() or user.is_superuser
 
@@ -83,6 +87,8 @@ def post_login(request):
         return redirect("reportes")
     if es_cocina(request.user):
         return redirect("panel_cocina")
+    if es_disponibilidad(request.user):
+        return redirect("panel_disponibilidad")
     return redirect("elegir_mesa")
 
 
@@ -635,6 +641,17 @@ def panel_cocina(request):
             })
         orden.pedidos_cocina = pedidos
 
+    return render(request, "pedidos/panel_cocina.html", {
+        "ordenes": ordenes,
+    })
+
+
+@login_required
+@user_passes_test(es_disponibilidad)
+def panel_disponibilidad(request):
+    """Pantalla aparte (pensada para celular) donde 'cocinero2' prende/apaga combos,
+    pollo, acompañamientos y controla el stock de presas: cocinero1 (panel_cocina) ya
+    no ve nada de esto, solo las comandas."""
     # disponibilidad agrupada por categoria, en el mismo orden que las pestañas del mesero
     productos = list(Producto.objects.all().order_by("nombre"))
     grupos = []
@@ -643,8 +660,7 @@ def panel_cocina(request):
         if lista:
             grupos.append((nombre, lista))
 
-    return render(request, "pedidos/panel_cocina.html", {
-        "ordenes": ordenes,
+    return render(request, "pedidos/panel_disponibilidad.html", {
         "grupos": grupos,
         "temporizadores": Producto.TEMPORIZADORES,
         "piezas_pollo": PiezaPollo.objects.all(),
@@ -683,7 +699,7 @@ def marcar_pedido_listo(request, orden_id, cuenta):
 
 
 @login_required
-@user_passes_test(es_cocina)
+@user_passes_test(es_disponibilidad)
 @require_POST
 def toggle_disponibilidad(request, producto_id):
     producto = get_object_or_404(Producto, id=producto_id)
@@ -695,7 +711,7 @@ def toggle_disponibilidad(request, producto_id):
 
 
 @login_required
-@user_passes_test(es_cocina)
+@user_passes_test(es_disponibilidad)
 @require_POST
 def poner_temporizador(request, producto_id):
     """Cocina avisa 'faltan X min' para un producto; minutos=0 quita el temporizador."""
@@ -717,7 +733,7 @@ def poner_temporizador(request, producto_id):
 
 
 @login_required
-@user_passes_test(es_cocina)
+@user_passes_test(es_disponibilidad)
 @require_POST
 def toggle_menestra(request, tipo_id):
     tipo = get_object_or_404(TipoMenestra, id=tipo_id)
@@ -729,7 +745,7 @@ def toggle_menestra(request, tipo_id):
 
 
 @login_required
-@user_passes_test(es_cocina)
+@user_passes_test(es_disponibilidad)
 @require_POST
 def actualizar_stock_pieza(request, pieza_id):
     """El deslizador de presas en cocina guarda cuantas hay disponibles de cada tipo."""
@@ -746,7 +762,7 @@ def actualizar_stock_pieza(request, pieza_id):
 
 
 @login_required
-@user_passes_test(es_cocina)
+@user_passes_test(es_disponibilidad)
 @require_POST
 def agregar_pollos_enteros(request):
     """Atajo para reponer todas las presas de una: cocina solo dice cuantos pollos

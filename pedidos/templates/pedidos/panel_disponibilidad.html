@@ -1,0 +1,324 @@
+{% extends "pedidos/base.html" %}
+{% block titulo %}Disponibilidad{% endblock %}
+{% block contenido %}
+<header class="top">
+    <span class="titulo">Disponibilidad</span>
+    <span class="top-acciones">
+        <button type="button" class="top-fullscreen" id="btn-fullscreen" aria-label="Pantalla completa">⛶</button>
+        <a href="{% url 'logout' %}" class="mesa" style="text-decoration:none;">Salir</a>
+    </span>
+</header>
+<div class="app">
+{% csrf_token %}
+
+<h3 class="seccion-titulo" style="margin-top:0;">Presas disponibles</h3>
+{% if piezas_pollo %}
+<div class="agregar-pollos">
+    <span class="agregar-pollos-label">Salieron</span>
+    <input type="number" id="input-pollos" class="agregar-pollos-input" min="1" step="1" inputmode="numeric" placeholder="10">
+    <span class="agregar-pollos-label">pollos enteros</span>
+    <button type="button" id="btn-agregar-pollos" class="btn agregar-pollos-btn">Agregar presas</button>
+</div>
+{% endif %}
+<div class="piezas-grid">
+    {% for pieza in piezas_pollo %}
+    <div class="pieza-rueda" data-pieza="{{ pieza.nombre }}" data-url="{% url 'actualizar_stock_pieza' pieza.id %}" data-valor="{{ pieza.stock }}">
+        <span class="pieza-nombre">{{ pieza.nombre }}</span>
+        <div class="rueda-scroll"><div class="rueda-pista"></div></div>
+        <span class="pieza-valor">{{ pieza.stock }} disponibles</span>
+    </div>
+    {% empty %}
+    <p class="menu-vacio">Agrega presas de pollo desde /admin/.</p>
+    {% endfor %}
+</div>
+
+<h3 class="seccion-titulo">Disponibilidad</h3>
+
+<div class="disp-categorias">
+    {% for nombre_cat, lista in grupos %}
+    <section class="disp-pagina">
+        <h4 class="disp-cat">{{ nombre_cat }}</h4>
+        <div class="disp-grid">
+            {% for producto in lista %}
+            {% if producto.categoria == 'bebidas' or producto.categoria == 'gaseosas' %}
+            <button type="button" class="disp-card simple {% if producto.disponible %}on{% else %}off{% endif %}"
+                    data-url-toggle="{% url 'toggle_disponibilidad' producto.id %}">
+                <span class="disp-media">{% if producto.imagen %}<img src="{{ producto.imagen.url }}" alt="">{% elif producto.categoria == 'gaseosas' %}🥤{% else %}🧃{% endif %}</span>
+                <span class="disp-nombre">{{ producto.nombre }}</span>
+                <span class="disp-estado">{% if producto.disponible %}Disponible{% else %}Agotado{% endif %}</span>
+            </button>
+            {% else %}
+            <button type="button"
+                    class="disp-card con-tiempo {% if producto.disponible %}on{% else %}off{% endif %}"
+                    data-nombre="{{ producto.nombre }}"
+                    data-disponible="{% if producto.disponible %}1{% endif %}"
+                    data-segundos="{{ producto.segundos_restantes }}"
+                    data-url-toggle="{% url 'toggle_disponibilidad' producto.id %}"
+                    data-url-timer="{% url 'poner_temporizador' producto.id %}">
+                <span class="disp-media">{% if producto.imagen %}<img src="{{ producto.imagen.url }}" alt="">{% elif producto.es_combo %}🍽️{% elif producto.categoria == 'acompanamientos' %}🍚{% else %}🍗{% endif %}</span>
+                <span class="disp-nombre">{{ producto.nombre }}</span>
+                <span class="disp-estado">{% if producto.disponible %}Disponible{% else %}Agotado{% endif %}</span>
+                <span class="disp-timer" {% if not producto.segundos_restantes %}hidden{% endif %}>⏱ --:--</span>
+            </button>
+            {% endif %}
+            {% endfor %}
+        </div>
+
+        {% if nombre_cat == "Acompañamientos" and tipos_menestra %}
+        <h4 class="disp-cat">Menestra</h4>
+        <div class="disp-grid">
+            {% for tipo in tipos_menestra %}
+            <button type="button" class="disp-card simple {% if tipo.disponible %}on{% else %}off{% endif %}"
+                    data-url-toggle="{% url 'toggle_menestra' tipo.id %}">
+                <span class="disp-media">🫘</span>
+                <span class="disp-nombre">{{ tipo.nombre }}</span>
+                <span class="disp-estado">{% if tipo.disponible %}Disponible{% else %}Agotado{% endif %}</span>
+            </button>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </section>
+    {% endfor %}
+</div>
+
+{# hoja de acciones de un producto: estado + temporizador con presets #}
+<div class="modal-overlay" id="modal-producto" hidden>
+    <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="mp-nombre">
+        <div class="sheet-head">
+            <div>
+                <p class="sheet-titulo" id="mp-nombre"></p>
+                <p class="sheet-sub" id="mp-estado"></p>
+            </div>
+            <button type="button" class="sheet-cerrar" id="mp-cerrar" aria-label="Cerrar">✕</button>
+        </div>
+        <div class="sheet-body">
+            <button type="button" class="btn-estado" id="mp-toggle"></button>
+
+            <h3 class="sheet-seccion" style="margin-top:18px;">Faltan... <span class="sheet-seccion-nota">el mesero lo ve al instante</span></h3>
+            <div class="presets">
+                {% for m in temporizadores %}
+                <button type="button" class="preset" data-minutos="{{ m }}">{{ m }}<small>min</small></button>
+                {% endfor %}
+            </div>
+            <button type="button" class="preset-quitar" id="mp-quitar" hidden data-minutos="0">Quitar temporizador</button>
+        </div>
+    </div>
+</div>
+</div>
+
+<script>
+// Todo esto (agotado/disponible, temporizador, presas, menestra) se guarda por fetch,
+// sin recargar ni navegar la pagina: asi cocinero2 se queda en la misma categoria
+// (Combos/Pollo/Acompañamientos/...) en la que estaba, en vez de volver a Combos.
+const csrftokenCocina = () => document.querySelector('[name=csrfmiddlewaretoken]').value;
+const enviarCocina = (url, datos) => fetch(url, {
+    method: 'POST', headers: { 'X-CSRFToken': csrftokenCocina() }, body: datos || null,
+}).then(r => r.json());
+
+// Cuenta regresiva de los temporizadores en las tarjetas (mm:ss). Reloj compartido: la hoja
+// de abajo puede agregar o quitar una tarjeta cuando se pone/quita un temporizador.
+const relojesCocina = new Map();   // elemento -> timestamp en que vence
+document.querySelectorAll('.disp-card[data-segundos]').forEach(el => {
+    const segundos = parseInt(el.dataset.segundos, 10) || 0;
+    if (segundos > 0) relojesCocina.set(el, Date.now() + segundos * 1000);
+});
+setInterval(() => {
+    relojesCocina.forEach((fin, el) => {
+        const s = Math.max(0, Math.round((fin - Date.now()) / 1000));
+        const tag = el.querySelector('.disp-timer');
+        tag.hidden = s === 0;
+        tag.textContent = `⏱ ${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+        el.dataset.segundos = s;
+        if (s === 0) relojesCocina.delete(el);
+    });
+}, 1000);
+
+// Tarjetas simples (bebidas/gaseosas, menestra): un toque cambia agotado/disponible al instante.
+document.querySelectorAll('.disp-card.simple').forEach(card => {
+    card.addEventListener('click', () => {
+        if (card.disabled) return;
+        card.disabled = true;
+        enviarCocina(card.dataset.urlToggle).then(d => {
+            card.disabled = false;
+            if (!d.ok) return;
+            card.classList.toggle('on', d.disponible);
+            card.classList.toggle('off', !d.disponible);
+            card.querySelector('.disp-estado').textContent = d.disponible ? 'Disponible' : 'Agotado';
+        }).catch(() => { card.disabled = false; });
+    });
+});
+
+// Hoja de acciones al tocar un producto con tiempo (combos/pollo/acompañamientos):
+// agotado/disponible + temporizador (presets, sin escribir)
+(() => {
+    const modal = document.getElementById('modal-producto');
+    const nombreEl = document.getElementById('mp-nombre');
+    const estadoEl = document.getElementById('mp-estado');
+    const toggleBtn = document.getElementById('mp-toggle');
+    const quitarBtn = document.getElementById('mp-quitar');
+    let cardActiva = null;
+    const cerrar = () => { modal.hidden = true; cardActiva = null; };
+
+    const pintarCard = (card, disponible, segundos) => {
+        card.dataset.disponible = disponible ? '1' : '';
+        card.classList.toggle('on', disponible);
+        card.classList.toggle('off', !disponible);
+        card.querySelector('.disp-estado').textContent = disponible ? 'Disponible' : 'Agotado';
+        const tag = card.querySelector('.disp-timer');
+        card.dataset.segundos = segundos;
+        if (segundos > 0) {
+            relojesCocina.set(card, Date.now() + segundos * 1000);
+            tag.hidden = false;
+            tag.textContent = `⏱ ${Math.floor(segundos / 60)}:${String(segundos % 60).padStart(2, '0')}`;
+        } else {
+            relojesCocina.delete(card);
+            tag.hidden = true;
+        }
+    };
+
+    document.querySelectorAll('.disp-card.con-tiempo').forEach(card => {
+        card.addEventListener('click', () => {
+            cardActiva = card;
+            const disponible = card.dataset.disponible === '1';
+            const segundos = parseInt(card.dataset.segundos, 10) || 0;
+            nombreEl.textContent = card.dataset.nombre;
+            estadoEl.textContent = (disponible ? 'Disponible' : 'Agotado') +
+                (segundos ? ` · faltan ${Math.ceil(segundos / 60)} min` : '');
+            toggleBtn.textContent = disponible ? 'Marcar como agotado' : 'Marcar como disponible';
+            toggleBtn.className = 'btn-estado ' + (disponible ? 'a-agotado' : 'a-disponible');
+            quitarBtn.hidden = segundos === 0;
+            modal.hidden = false;
+        });
+    });
+
+    toggleBtn.addEventListener('click', () => {
+        if (!cardActiva) return;
+        const card = cardActiva;
+        enviarCocina(card.dataset.urlToggle).then(d => {
+            if (d.ok) pintarCard(card, d.disponible, parseInt(card.dataset.segundos, 10) || 0);
+            cerrar();
+        });
+    });
+
+    document.querySelectorAll('#modal-producto .preset, #modal-producto .preset-quitar').forEach(btn => {
+        btn.addEventListener('click', () => {
+            if (!cardActiva) return;
+            const card = cardActiva;
+            const datos = new URLSearchParams({ minutos: btn.dataset.minutos });
+            enviarCocina(card.dataset.urlTimer, datos).then(d => {
+                if (d.ok) pintarCard(card, card.dataset.disponible === '1', d.segundos);
+                cerrar();
+            });
+        });
+    });
+
+    document.getElementById('mp-cerrar').addEventListener('click', cerrar);
+    modal.addEventListener('click', e => { if (e.target === modal) cerrar(); });
+})();
+
+// Rueda de presas disponibles: deslizar como el selector de tiempo de un celular,
+// sin tener que escribir el numero. Al soltar, guarda el valor centrado.
+// Ademas, cada venta de una presa la descuenta sola (al confirmar el mesero su pedido),
+// asi que la rueda se re-sincroniza sola cada pocos segundos sin que cocinero2 la toque.
+const ruedasPorPieza = {};
+
+document.querySelectorAll('.pieza-rueda').forEach(card => {
+    const scrollEl = card.querySelector('.rueda-scroll');
+    const pista = card.querySelector('.rueda-pista');
+    const valorEl = card.querySelector('.pieza-valor');
+    const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+    const MAX = 40, ANCHO = 44;
+
+    for (let n = 0; n <= MAX; n++) {
+        const num = document.createElement('div');
+        num.className = 'rueda-num';
+        num.textContent = n;
+        num.dataset.n = n;
+        pista.appendChild(num);
+    }
+    const espacio = (scrollEl.clientWidth - ANCHO) / 2;
+    pista.style.paddingLeft = espacio + 'px';
+    pista.style.paddingRight = espacio + 'px';
+
+    const marcarCentro = n => {
+        pista.querySelectorAll('.rueda-num').forEach(d => d.classList.toggle('centro', Number(d.dataset.n) === n));
+        valorEl.textContent = `${n} disponible${n === 1 ? '' : 's'}`;
+    };
+
+    let actual = Math.max(0, Math.min(MAX, parseInt(card.dataset.valor, 10) || 0));
+    scrollEl.scrollLeft = actual * ANCHO;
+    marcarCentro(actual);
+
+    let quieto = null;
+    let interactuando = false;
+    let saltarEnvio = false;
+    let ultimoCambioLocal = 0;
+
+    ['pointerdown', 'touchstart'].forEach(ev => scrollEl.addEventListener(ev, () => { interactuando = true; }));
+    ['pointerup', 'touchend', 'pointercancel'].forEach(ev => scrollEl.addEventListener(ev, () => {
+        setTimeout(() => { interactuando = false; }, 400);
+    }));
+
+    scrollEl.addEventListener('scroll', () => {
+        const n = Math.max(0, Math.min(MAX, Math.round(scrollEl.scrollLeft / ANCHO)));
+        marcarCentro(n);
+        actual = n;
+        if (saltarEnvio) return;
+        ultimoCambioLocal = Date.now();
+        clearTimeout(quieto);
+        quieto = setTimeout(() => {
+            const datos = new FormData();
+            datos.append('cantidad', n);
+            fetch(card.dataset.url, { method: 'POST', headers: { 'X-CSRFToken': csrftoken }, body: datos });
+        }, 300);
+    });
+
+    // Aplica un stock que cambio en el servidor (venta de una presa), salvo que
+    // cocinero2 este tocando la rueda justo ahora o la acabe de mover el mismo.
+    ruedasPorPieza[card.dataset.pieza] = stock => {
+        const n = Math.max(0, Math.min(MAX, stock));
+        if (interactuando || n === actual || Date.now() - ultimoCambioLocal < 2000) return;
+        saltarEnvio = true;
+        actual = n;
+        scrollEl.scrollLeft = n * ANCHO;
+        marcarCentro(n);
+        setTimeout(() => { saltarEnvio = false; }, 400);
+    };
+});
+
+if (Object.keys(ruedasPorPieza).length) {
+    setInterval(() => {
+        fetch("{% url 'disponibilidad_json' %}")
+            .then(r => r.json())
+            .then(data => {
+                Object.entries(data.piezas || {}).forEach(([nombre, stock]) => {
+                    if (ruedasPorPieza[nombre]) ruedasPorPieza[nombre](stock);
+                });
+            })
+            .catch(() => {});
+    }, 3000);
+}
+
+// "Salieron N pollos enteros": reparte 2 de cada presa por pollo sola, sin tocar
+// las ruedas una por una. Las ruedas se mueven solas con el resultado.
+(() => {
+    const btn = document.getElementById('btn-agregar-pollos');
+    const input = document.getElementById('input-pollos');
+    if (!btn || !input) return;
+    btn.addEventListener('click', () => {
+        const cantidad = parseInt(input.value, 10);
+        if (!cantidad || cantidad <= 0) return;
+        btn.disabled = true;
+        const datos = new URLSearchParams({ cantidad });
+        enviarCocina("{% url 'agregar_pollos_enteros' %}", datos).then(d => {
+            btn.disabled = false;
+            if (!d.ok) return;
+            input.value = '';
+            Object.entries(d.piezas).forEach(([nombre, stock]) => {
+                if (ruedasPorPieza[nombre]) ruedasPorPieza[nombre](stock);
+            });
+        }).catch(() => { btn.disabled = false; });
+    });
+})();
+</script>
+{% endblock %}

@@ -30,6 +30,7 @@ urlpatterns = [
     path("cocina/", views.panel_cocina, name="panel_cocina"),
     path("cocina/api/pendientes/", views.ordenes_pendientes_json, name="ordenes_pendientes_json"),
     path("cocina/orden/<int:orden_id>/cuenta/<int:cuenta>/lista/", views.marcar_pedido_listo, name="marcar_pedido_listo"),
+    path("cocina/disponibilidad/", views.panel_disponibilidad, name="panel_disponibilidad"),
     path("cocina/producto/<int:producto_id>/toggle/", views.toggle_disponibilidad, name="toggle_disponibilidad"),
     path("cocina/producto/<int:producto_id>/temporizador/", views.poner_temporizador, name="poner_temporizador"),
     path("cocina/pieza/<int:pieza_id>/stock/", views.actualizar_stock_pieza, name="actualizar_stock_pieza"),
