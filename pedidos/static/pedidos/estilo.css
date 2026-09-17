@@ -2380,7 +2380,51 @@ a.btn-enviar-link {
     .kpi-hero { grid-column: 1 / -1; }
     .dash-grid { grid-template-columns: 1fr; }
     .dash-cuerpo { grid-template-columns: 1fr; }
-    .dash-menu { position: static; flex-direction: row; overflow-x: auto; }
+    .dash-menu {
+        position: static;
+        flex-direction: row;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+    }
+    .dash-menu::-webkit-scrollbar { display: none; }
     .menu-item { white-space: nowrap; }
     .menu-externo { margin: 0 0 0 auto; border: none; padding-top: 11px; }
+}
+
+/* celular: el dashboard se usa mucho para cargar gastos del dia sobre la marcha,
+   asi que el formulario de gastos apila los campos a todo el ancho en vez de la
+   fila comprimida que usa PC. */
+@media (max-width: 560px) {
+    header.top { padding: 0 14px; gap: 8px; }
+    header.top .titulo { font-size: 18px; }
+    header.top .mesa { font-size: 10.5px; padding: 5px 9px; }
+
+    .dash { padding: 14px 14px 40px; }
+
+    .dash-filtros { gap: 10px; }
+    .rangos, .navegar { flex: 1 1 100%; justify-content: center; }
+    .rango { flex: 1; text-align: center; padding: 10px 8px; }
+    .dash-etiqueta { order: 3; flex: 1 1 100%; }
+    .btn-exportar {
+        order: 4;
+        flex: 1 1 100%;
+        margin-left: 0;
+        text-align: center;
+        display: block;
+    }
+
+    .kpis { grid-template-columns: 1fr; }
+    .kpi-hero .kpi-valor { font-size: 32px; }
+
+    .panel { padding: 14px 14px 12px; }
+    .menu-item { padding: 10px 12px; font-size: 12.5px; }
+
+    .gasto-form { gap: 10px; }
+    .campo-gasto,
+    .campo-gasto-ancho { flex: 1 1 100%; }
+    .campo-monto { width: 100%; }
+    .btn-guardar { width: 100%; }
+
+    .tabla th, .tabla td { padding: 8px 6px; font-size: 12.5px; }
 }
