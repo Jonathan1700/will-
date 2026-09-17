@@ -16,7 +16,6 @@
     <div class="comanda" data-orden-id="{{ orden.id }}">
         <div class="comanda-header">
             <span class="mesa-num">Mesa {{ orden.mesa.numero }}</span>
-            {% if orden.para_llevar %}<span class="chip chip-cambio">🥡 Para llevar</span>{% endif %}
             {% with min=orden.minutos_en_espera %}
             <span class="tiempo-tag {% if min < 5 %}reciente{% elif min < 12 %}medio{% else %}tarde{% endif %}">
                 hace {{ min }} min
@@ -33,6 +32,7 @@
         <section class="comanda-pedido {% if pc.listo %}comanda-pedido-listo{% endif %}">
             <div class="ticket-cuenta-head">
                 <span class="pedido-num">Pedido {{ pc.numero }}</span>
+                {% if pc.para_llevar %}<span class="chip chip-cambio">🥡 Para llevar</span>{% endif %}
                 {% if pc.listo %}<span class="chip chip-ok">✓ Listo</span>{% endif %}
             </div>
             <table class="ticket">

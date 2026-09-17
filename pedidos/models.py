@@ -221,24 +221,37 @@ class Orden(models.Model):
     # instante y nunca pasa por la pantalla de cocina
     es_venta_directa = models.BooleanField(default=False)
 
-    # para llevar suma un recargo fijo (envases); para servir en mesa es precio normal
-    para_llevar = models.BooleanField(default=False)
-
     def __str__(self):
         return f"Orden #{self.id} - Mesa {self.mesa.numero}"
 
-    def unidades_con_envase(self):
-        """Cuantos platos (pollo/combos) y acompañamientos hay en el pedido: cada uno necesita su envase."""
+    def unidades_con_envase(self, cuenta=None):
+        """Cuantos platos (pollo/combos) y acompañamientos hay en el pedido (o en una
+        sola cuenta, si se indica): cada uno necesita su envase."""
+        items = self.items.all()
+        if cuenta is not None:
+            items = [i for i in items if i.cuenta == cuenta]
         return sum(
-            item.cantidad for item in self.items.all()
+            item.cantidad for item in items
             if item.producto.categoria in self.CATEGORIAS_CON_ENVASE
         )
 
+    def recargo_llevar(self):
+        """Recargo por envase de las cuentas de esta orden marcadas 'para llevar'
+        (cada cuenta de la mesa lo pide por separado, ver EstadoCuentaOrden.para_llevar)."""
+        cuentas_llevar = {e.cuenta for e in self.cuentas_estado.all() if e.para_llevar}
+        return sum(
+            (self.RECARGO_PARA_LLEVAR * self.unidades_con_envase(cuenta=c) for c in cuentas_llevar),
+            Decimal("0"),
+        )
+
+    @property
+    def para_llevar(self):
+        """Si alguna cuenta de esta orden es para llevar (para reportes, donde se ve la
+        orden completa). El detalle real esta por cuenta en EstadoCuentaOrden.para_llevar."""
+        return self.cuentas_estado.filter(para_llevar=True).exists()
+
     def total(self):
-        total = sum(item.subtotal() for item in self.items.all())
-        if self.para_llevar:
-            total += self.RECARGO_PARA_LLEVAR * self.unidades_con_envase()
-        return total
+        return sum(item.subtotal() for item in self.items.all()) + self.recargo_llevar()
 
     def minutos_en_espera(self):
         if not self.enviado_a_cocina:
@@ -316,6 +329,10 @@ class EstadoCuentaOrden(models.Model):
     cuenta = models.PositiveIntegerField(default=1)
     listo = models.BooleanField(default=False)
     entregado = models.BooleanField(default=False)
+
+    # esta cuenta puntual es para llevar (recargo por envase); otra cuenta de la misma
+    # mesa puede ser para servir sin recargo, por eso vive aqui y no en Orden
+    para_llevar = models.BooleanField(default=False)
 
     class Meta:
         unique_together = [("orden", "cuenta")]

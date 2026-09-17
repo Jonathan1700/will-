@@ -290,7 +290,7 @@ class ParaLlevarTest(TestCase):
     def test_para_llevar_suma_el_recargo(self):
         orden = self._orden_abierta()
         self.client.post(reverse("agregar_item", args=[orden.id, self.producto.id]))
-        self.client.post(reverse("confirmar_orden", args=[orden.id]), {"para_llevar": "1"})
+        self.client.post(reverse("confirmar_orden", args=[orden.id]), {"para_llevar_1": "1"})
 
         orden.refresh_from_db()
         self.assertTrue(orden.para_llevar)
@@ -313,7 +313,7 @@ class ParaLlevarTest(TestCase):
         orden = self._orden_abierta()
         self.client.post(reverse("agregar_item", args=[orden.id, pollo.id]))
         self.client.post(reverse("agregar_item", args=[orden.id, pollo.id]))  # sube a cantidad 2
-        self.client.post(reverse("confirmar_orden", args=[orden.id]), {"para_llevar": "1"})
+        self.client.post(reverse("confirmar_orden", args=[orden.id]), {"para_llevar_1": "1"})
 
         orden.refresh_from_db()
         self.assertEqual(orden.items.get(producto=pollo).cantidad, 2)
@@ -326,7 +326,7 @@ class ParaLlevarTest(TestCase):
         )
         orden = self._orden_abierta()
         self.client.post(reverse("agregar_item", args=[orden.id, bebida.id]))
-        self.client.post(reverse("confirmar_orden", args=[orden.id]), {"para_llevar": "1"})
+        self.client.post(reverse("confirmar_orden", args=[orden.id]), {"para_llevar_1": "1"})
 
         orden.refresh_from_db()
         self.assertTrue(orden.para_llevar)
@@ -340,7 +340,7 @@ class ParaLlevarTest(TestCase):
         orden = self._orden_abierta()
         for _ in range(3):
             self.client.post(reverse("agregar_item", args=[orden.id, acompanamiento.id]))
-        self.client.post(reverse("confirmar_orden", args=[orden.id]), {"para_llevar": "1"})
+        self.client.post(reverse("confirmar_orden", args=[orden.id]), {"para_llevar_1": "1"})
 
         orden.refresh_from_db()
         self.assertEqual(orden.items.get(producto=acompanamiento).cantidad, 3)
@@ -359,10 +359,27 @@ class ParaLlevarTest(TestCase):
         orden = self._orden_abierta()
         self.client.post(reverse("agregar_item", args=[orden.id, pollo.id]))
         self.client.post(reverse("agregar_item", args=[orden.id, acompanamiento.id]))
-        self.client.post(reverse("confirmar_orden", args=[orden.id]), {"para_llevar": "1"})
+        self.client.post(reverse("confirmar_orden", args=[orden.id]), {"para_llevar_1": "1"})
 
         orden.refresh_from_db()
         self.assertEqual(orden.total(), Decimal("3.75") + Decimal("1.75") + Decimal("0.25") * 2)
+
+    def test_una_cuenta_para_llevar_no_recarga_la_otra_cuenta_de_la_misma_mesa(self):
+        """Mesa con 2 cuentas: cuenta 1 se va (para llevar), cuenta 2 se sirve en la mesa.
+        Antes el checkbox era por mesa entera y recargaba tambien a la cuenta 2."""
+        pollo = Producto.objects.create(
+            nombre="1/4 Pollo a la brasa", precio=Decimal("3.75"), categoria="pollo"
+        )
+        orden = self._orden_abierta()
+        self.client.post(reverse("agregar_item", args=[orden.id, pollo.id]), {"cuenta": "1"})
+        self.client.post(reverse("agregar_item", args=[orden.id, self.producto.id]), {"cuenta": "2"})
+        self.client.post(reverse("confirmar_orden", args=[orden.id]), {"para_llevar_1": "1"})
+
+        orden.refresh_from_db()
+        self.assertTrue(orden.cuentas_estado.get(cuenta=1).para_llevar)
+        self.assertFalse(orden.cuentas_estado.get(cuenta=2).para_llevar)
+        # 1/4 pollo (3.75 + 0.25 de envase) + combo de la cuenta 2 sin recargo (10.00)
+        self.assertEqual(orden.total(), Decimal("3.75") + Decimal("0.25") + Decimal("10.00"))
 
 
 class CuentasSeparadasTest(TestCase):

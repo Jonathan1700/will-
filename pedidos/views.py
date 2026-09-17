@@ -119,7 +119,7 @@ def elegir_mesa(request):
             grupo["tiene_directo"] = True
         else:
             grupo["tiene_cocina"] = True
-        if ec.orden.para_llevar:
+        if ec.para_llevar:
             unidades = sum(
                 i.cantidad for i in items if i.producto.categoria in Orden.CATEGORIAS_CON_ENVASE
             )
@@ -157,10 +157,24 @@ def cuentas_mesa(request, mesa_id):
 
     orden = Orden.objects.filter(mesa=mesa, estado="abierta", es_venta_directa=False).first()
 
+    # una fila por cada cuenta con productos nuevos por enviar (de esta ronda, no de
+    # rondas anteriores): asi el mesero marca "para llevar" cuenta por cuenta antes de
+    # mandar todo junto a cocina, en vez de un unico check que aplicaba a toda la mesa.
+    envio_cuentas = []
+    if orden:
+        for numero in sorted({item.cuenta for item in orden.items.all()}):
+            items_ronda = [i for i in orden.items.all() if i.cuenta == numero]
+            envio_cuentas.append({
+                "numero": numero,
+                "subtotal": sum(i.subtotal() for i in items_ronda),
+                "unidades_envase": orden.unidades_con_envase(cuenta=numero),
+            })
+
     return render(request, "pedidos/cuentas_mesa.html", {
         "mesa": mesa,
         "cuentas": cuentas,
         "orden": orden,
+        "envio_cuentas": envio_cuentas,
     })
 
 
@@ -267,7 +281,7 @@ def detalle_pedido(request, mesa_id, cuenta):
             tiene_directo = True
         else:
             tiene_cocina = True
-        if orden.para_llevar:
+        if estado.para_llevar:
             unidades = sum(
                 i.cantidad for i in propios if i.producto.categoria in Orden.CATEGORIAS_CON_ENVASE
             )
@@ -473,14 +487,22 @@ def confirmar_orden(request, orden_id):
 
     orden.estado = "enviada"
     orden.enviado_a_cocina = timezone.now()
-    orden.para_llevar = request.POST.get("para_llevar") == "1"
-    # cada cuenta (division de la mesa) se prepara y se entrega por separado: cocina
-    # ve "Pedido 1", "Pedido 2"... igual que el mesero los separo al cargar los items.
-    for numero in sorted({item.cuenta for item in orden.items.all()}):
-        EstadoCuentaOrden.objects.get_or_create(orden=orden, cuenta=numero)
     orden.save()
 
-    tipo = "para llevar" if orden.para_llevar else "para servir"
+    # cada cuenta (division de la mesa) se prepara y se entrega por separado: cocina
+    # ve "Pedido 1", "Pedido 2"... igual que el mesero los separo al cargar los items.
+    # "para llevar" tambien es por cuenta: una mesa puede tener una cuenta para llevar
+    # y otra para servir, asi que cada una manda su propio checkbox.
+    cuentas_llevar = []
+    for numero in sorted({item.cuenta for item in orden.items.all()}):
+        es_para_llevar = request.POST.get(f"para_llevar_{numero}") == "1"
+        EstadoCuentaOrden.objects.update_or_create(
+            orden=orden, cuenta=numero, defaults={"para_llevar": es_para_llevar},
+        )
+        if es_para_llevar:
+            cuentas_llevar.append(numero)
+
+    tipo = f"para llevar (cuenta {', '.join(map(str, cuentas_llevar))})" if cuentas_llevar else "para servir"
     registrar(request.user, f"Confirmo orden #{orden.id} ({tipo}) - Mesa {orden.mesa.numero} - ${orden.total()}")
     return redirect("elegir_mesa")
 
@@ -561,6 +583,7 @@ def panel_cocina(request):
             pedidos.append({
                 "numero": numero,
                 "listo": bool(estado and estado.listo),
+                "para_llevar": bool(estado and estado.para_llevar),
                 "items": items_cuenta,
                 "total": sum(item.subtotal() for item in items_cuenta),
             })
