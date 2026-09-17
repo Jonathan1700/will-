@@ -5,7 +5,8 @@ from django.test import TestCase
 from django.urls import reverse
 
 from .models import (
-    ConsumoPieza, DetalleOrden, Mesa, Orden, PiezaPollo, Producto, VarianteProducto, EstadoCuentaOrden,
+    ConsumoPieza, Cuenta, DetalleOrden, Mesa, Orden, PiezaPollo, Producto, VarianteProducto,
+    EstadoCuentaOrden,
 )
 
 
@@ -572,3 +573,68 @@ class CuentasSeparadasTest(TestCase):
         self.client.post(reverse("entregar_pedido", args=[orden.id, 1]))
         orden.refresh_from_db()
         self.assertEqual(orden.estado, "cerrada")
+
+
+class CobrarCuentaTest(TestCase):
+    """Reproduce el reporte del usuario: 'uno que otro pedido no se guarda en los
+    reportes'. Causa: 'Cobrar' en Cuentas de la Mesa solo cerraba la Cuenta (cobro), sin
+    tocar la Orden -- si el mesero cobraba desde ahi en vez de tocar 'Ya la entregue' en
+    la pantalla de listos, la orden se quedaba colgada en 'enviada'/'entregada' para
+    siempre y esa venta nunca aparecia en los reportes."""
+
+    def setUp(self):
+        Group.objects.get_or_create(name="Mesero")
+        Group.objects.get_or_create(name="Admin")
+        self.mesero = User.objects.create_user("mesero", password="1234")
+        self.mesero.groups.add(Group.objects.get(name="Mesero"))
+        self.admin = User.objects.create_user("admin", password="1234")
+        self.admin.groups.add(Group.objects.get(name="Admin"))
+        self.client.login(username="mesero", password="1234")
+
+        self.mesa = Mesa.objects.create(numero=1)
+        self.producto = Producto.objects.create(
+            nombre="Combo 1", precio=Decimal("10.00"), categoria="combos"
+        )
+
+    def test_cobrar_cierra_la_orden_aunque_no_se_use_entregar(self):
+        self.client.get(reverse("menu_mesa", args=[self.mesa.id]))
+        orden = Orden.objects.get(mesa=self.mesa, estado="abierta", es_venta_directa=False)
+        self.client.post(reverse("agregar_item", args=[orden.id, self.producto.id]))
+        self.client.post(reverse("confirmar_orden", args=[orden.id]))
+        orden.refresh_from_db()
+        self.assertEqual(orden.estado, "enviada")
+
+        cuenta = Cuenta.objects.create(mesa=self.mesa, numero=1)
+        self.client.post(reverse("cobrar_cuenta", args=[cuenta.id]))
+
+        cuenta.refresh_from_db()
+        orden.refresh_from_db()
+        self.assertTrue(cuenta.cerrada)
+        self.assertEqual(orden.estado, "cerrada")
+        estado = orden.cuentas_estado.get(cuenta=1)
+        self.assertTrue(estado.listo)
+        self.assertTrue(estado.entregado)
+
+        # y ahora si aparece en los reportes (antes se quedaba colgada en 'enviada')
+        self.client.logout()
+        self.client.login(username="admin", password="1234")
+        respuesta = self.client.get(reverse("reportes"), {"rango": "dia"})
+        self.assertEqual(respuesta.context["kpi"]["ordenes"], 1)
+        self.assertIn(orden.id, [o.id for o in respuesta.context["todas"]])
+
+    def test_cobrar_no_afecta_una_orden_de_otra_cuenta_de_la_misma_mesa(self):
+        """Cuenta 1 se cobra; cuenta 2 (misma mesa, no lista aun) debe seguir intacta,
+        sin cerrarse de arrastre."""
+        self.client.get(reverse("menu_mesa", args=[self.mesa.id]))
+        orden = Orden.objects.get(mesa=self.mesa, estado="abierta", es_venta_directa=False)
+        self.client.post(reverse("agregar_item", args=[orden.id, self.producto.id]), {"cuenta": "1"})
+        self.client.post(reverse("agregar_item", args=[orden.id, self.producto.id]), {"cuenta": "2"})
+        self.client.post(reverse("confirmar_orden", args=[orden.id]))
+
+        cuenta1 = Cuenta.objects.create(mesa=self.mesa, numero=1)
+        self.client.post(reverse("cobrar_cuenta", args=[cuenta1.id]))
+
+        orden.refresh_from_db()
+        self.assertEqual(orden.estado, "enviada", "La orden no debe cerrarse mientras la cuenta 2 sigue pendiente")
+        self.assertTrue(orden.cuentas_estado.get(cuenta=1).entregado)
+        self.assertFalse(orden.cuentas_estado.get(cuenta=2).entregado)

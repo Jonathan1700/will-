@@ -214,9 +214,23 @@ def crear_cuenta(request, mesa_id):
 @user_passes_test(es_mesero)
 @require_POST
 def cobrar_cuenta(request, cuenta_id):
+    """Cobrar tambien cierra la orden de cocina de esa cuenta (aca no se cobra antes de
+    entregar): si el mesero cierra la cuenta desde aca en vez de tocar 'Ya la entregue'
+    en la pantalla de listos, la orden debe quedar cerrada igual - si no, queda colgada
+    en 'enviada' para siempre y esa venta nunca aparece en los reportes."""
     cuenta = get_object_or_404(Cuenta, id=cuenta_id, cerrada=False)
     cuenta.cerrada = True
     cuenta.save()
+
+    estados = list(
+        EstadoCuentaOrden.objects.filter(
+            orden__mesa=cuenta.mesa, cuenta=cuenta.numero, entregado=False,
+        ).select_related("orden", "orden__mesa")
+    )
+    for estado in estados:
+        estado.listo = True
+    _marcar_entregados(estados)
+
     registrar(request.user, f"Cobro cuenta {cuenta.numero} - Mesa {cuenta.mesa.numero}")
     return redirect("cuentas_mesa", mesa_id=cuenta.mesa_id)
 
