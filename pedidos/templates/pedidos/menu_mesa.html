@@ -27,90 +27,27 @@
     <main class="menu">
         <h2 class="menu-titulo">{% for valor, nombre in categorias %}{% if valor == categoria_activa %}{{ nombre }}{% endif %}{% endfor %}</h2>
 
+        {% if categoria_activa == "gaseosas" %}
+            {% regroup productos by get_tamano_display as grupos_tamano %}
+            {% for grupo in grupos_tamano %}
+            <h3 class="menu-subgrupo">{{ grupo.grouper }}</h3>
+            <div class="grid">
+                {% for producto in grupo.list %}
+                {% include "pedidos/_producto_card.html" %}
+                {% endfor %}
+            </div>
+            {% empty %}
+            <p class="menu-vacio">No hay productos en esta categoria todavia.</p>
+            {% endfor %}
+        {% else %}
         <div class="grid">
             {% for producto in productos %}
-            {% with disponible=producto.esta_disponible %}
-            <article class="card {% if not disponible %}no-disponible{% endif %}" data-producto-id="{{ producto.id }}">
-                <div class="card-media">
-                    {% if not disponible %}
-                        <span class="badge badge-agotado">Agotado</span>
-                    {% elif producto.stock_bajo %}
-                        <span class="badge badge-pocas">Pocas unidades</span>
-                    {% elif producto.es_combo %}
-                        <span class="badge badge-combo">Combo</span>
-                    {% endif %}
-                    <span class="badge badge-timer" data-timer {% if not producto.segundos_restantes %}hidden{% endif %}>⏱ {{ producto.minutos_restantes }} min</span>
-                    {% if producto.imagen %}
-                    <img class="media-foto" src="{{ producto.imagen.url }}" alt="{{ producto.nombre }}">
-                    {% else %}
-                    <span class="media-emoji" aria-hidden="true">
-                        {% if producto.es_combo %}🍽️{% elif producto.categoria == 'gaseosas' %}🥤{% elif producto.categoria == 'bebidas' %}🧃{% elif producto.categoria == 'acompanamientos' %}🍚{% else %}🍗{% endif %}
-                    </span>
-                    {% endif %}
-                </div>
-                <div class="card-body">
-                    <p class="nombre">{{ producto.nombre }}</p>
-                    {% if producto.combo_incluye %}
-                    <p class="combo-incluye">{{ producto.combo_incluye }}</p>
-                    {% endif %}
-                    <div class="chips">
-                        {% if producto.permite_cambio and acompanamientos_cambio %}
-                        <span class="chip chip-cambio">🔄 Cambio de acompañamiento</span>
-                        {% endif %}
-                        {% if producto.requiere_pieza %}
-                        <span class="chip">Elige pieza</span>
-                        {% endif %}
-                        {% if producto.controla_stock %}
-                        <span class="chip {% if producto.stock_bajo %}chip-alerta{% endif %}">Stock: {{ producto.stock }}</span>
-                        {% endif %}
-                    </div>
-                    <div class="card-footer">
-                        <span class="precio">${{ producto.precio }}</span>
-                        <div class="card-acciones">
-                            {% if producto.categoria in categorias_venta_directa %}
-                            <form method="post" action="{% url 'agregar_item_directo' mesa.id producto.id %}">
-                                {% csrf_token %}
-                                <input type="hidden" name="categoria" value="{{ categoria_activa }}">
-                                <button type="submit" class="btn-directo" {% if not disponible %}disabled{% endif %}
-                                        title="Venta directa: se cobra al instante, no pasa por cocina"></button>
-                            </form>
-                            {% endif %}
-                            <form method="post" action="{% url 'agregar_item' orden.id producto.id %}" class="form-agregar">
-                                {% csrf_token %}
-                                <input type="hidden" name="categoria" value="{{ categoria_activa }}">
-                                <input type="hidden" name="cuenta" value="{{ cuenta_activa }}">
-                                {% if producto.requiere_pieza or producto.permite_cambio or producto.tiene_opciones_incluidas or producto.tiene_variantes %}
-                                <input type="hidden" name="pieza">
-                                <input type="hidden" name="acompanamiento">
-                                <input type="hidden" name="sin_acompanamientos">
-                                <input type="hidden" name="variantes">
-                                <input type="hidden" name="despresado">
-                                <button type="button" class="btn-add abrir-opciones"
-                                        data-nombre="{{ producto.nombre }}"
-                                        data-precio="{{ producto.precio|unlocalize }}"
-                                        data-requiere-pieza="{% if producto.requiere_pieza %}1{% endif %}"
-                                        data-despresado="{% if producto.categoria == 'pollo' %}1{% endif %}"
-                                        data-incluido="{{ producto.acompanamiento_incluido }}"
-                                        data-opciones-incluidas="{{ producto.opciones_incluidas }}"
-                                        data-variantes='{{ producto.variantes_json }}'
-                                        {% if not disponible %}disabled{% endif %} aria-label="Agregar">
-                                    {% if disponible %}+{% else %}✕{% endif %}
-                                </button>
-                                {% else %}
-                                <button class="btn-add" {% if not disponible %}disabled{% endif %} aria-label="Agregar">
-                                    {% if disponible %}+{% else %}✕{% endif %}
-                                </button>
-                                {% endif %}
-                            </form>
-                        </div>
-                    </div>
-                </div>
-            </article>
-            {% endwith %}
+            {% include "pedidos/_producto_card.html" %}
             {% empty %}
             <p class="menu-vacio">No hay productos en esta categoria todavia.</p>
             {% endfor %}
         </div>
+        {% endif %}
     </main>
 
     {# ---- panel "Tu pedido": columna fija a la derecha; en pantallas angostas es una hoja inferior ---- #}

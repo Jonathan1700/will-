@@ -27,9 +27,19 @@ class Producto(models.Model):
     # opciones del temporizador de cocina (minutos): un toque, sin escribir
     TEMPORIZADORES = [5, 10, 15, 20, 25]
 
+    # tamaño de presentacion: solo aplica a gaseosas, para agruparlas en el menu del
+    # mesero (personal, litro, 1.35L, 2L). El resto de categorias queda en "personal".
+    TAMANOS = [
+        ("personal", "Personal"),
+        ("litro", "De litro"),
+        ("litro_35", "De 1.35 litros"),
+        ("dos_litros", "De 2 litros"),
+    ]
+
     nombre = models.CharField(max_length=100)
     precio = models.DecimalField(max_digits=6, decimal_places=2)
     categoria = models.CharField(max_length=20, choices=CATEGORIAS)
+    tamano = models.CharField(max_length=20, choices=TAMANOS, default="personal")
 
     # foto del plato: se sube desde /admin/, si no hay se muestra un emoji
     imagen = models.FileField(upload_to="productos/", blank=True)

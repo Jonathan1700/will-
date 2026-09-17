@@ -251,7 +251,16 @@ def menu_mesa(request, mesa_id):
     total_cuenta = sum(item.subtotal() for item in items_cuenta)
 
     categoria = request.GET.get("categoria", "combos")
-    productos = Producto.objects.filter(categoria=categoria).order_by("nombre")
+    if categoria == "gaseosas":
+        # gaseosas se agrupan por tamano (personal, litro, 1.35L, 2L) para que el
+        # mesero las encuentre rapido; el orden de TAMANOS manda, no el alfabetico.
+        orden_tamano = {valor: i for i, (valor, _) in enumerate(Producto.TAMANOS)}
+        productos = sorted(
+            Producto.objects.filter(categoria=categoria),
+            key=lambda p: (orden_tamano.get(p.tamano, 0), p.nombre),
+        )
+    else:
+        productos = Producto.objects.filter(categoria=categoria).order_by("nombre")
 
     # acompañamientos que pueden reemplazar las papas de un plato ("Mejora tu combo")
     cambios = [

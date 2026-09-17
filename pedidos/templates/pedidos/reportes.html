@@ -140,20 +140,23 @@
             <form method="post" action="{% url 'actualizar_stock' %}" class="inv-form">
                 {% csrf_token %}
                 <input type="hidden" name="volver" value="rango={{ rango }}&fecha={{ ancla|date:'Y-m-d' }}">
+                {% regroup inventario by p.get_categoria_display as grupos_inventario %}
+                {% for grupo in grupos_inventario %}
+                <h3 class="inv-subtitulo">{{ grupo.grouper }}</h3>
                 <div class="tabla-scroll">
                     <table class="tabla inv-tabla">
                         <thead>
                             <tr>
-                                <th>Producto</th><th>Tipo</th><th class="num">Vendidas en el periodo</th>
+                                <th>Producto</th>{% if grupo.grouper == "Gaseosas" %}<th>Tamaño</th>{% endif %}<th class="num">Vendidas en el periodo</th>
                                 <th>Llevar conteo</th><th>Unidades en stock</th><th class="num">Precio de compra</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {% for fila in inventario %}
+                            {% for fila in grupo.list %}
                             {% with p=fila.p %}
                             <tr class="{% if p.controla_stock and p.stock == 0 %}inv-agotado{% elif p.stock_bajo %}inv-bajo{% endif %}">
                                 <td><strong>{{ p.nombre }}</strong></td>
-                                <td class="detalle">{{ p.get_categoria_display }}</td>
+                                {% if grupo.grouper == "Gaseosas" %}<td class="detalle">{{ p.get_tamano_display }}</td>{% endif %}
                                 <td class="num">{{ fila.vendidas }}</td>
                                 <td>
                                     <label class="inv-switch">
@@ -178,6 +181,7 @@
                         </tbody>
                     </table>
                 </div>
+                {% endfor %}
                 <div class="inv-acciones">
                     <button type="submit" class="btn-guardar">Guardar inventario</button>
                 </div>

@@ -981,6 +981,17 @@ table.ticket .t-num {
     margin: 0 0 14px;
 }
 
+.menu-subgrupo {
+    font-size: 14px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .5px;
+    color: var(--ink-soft);
+    margin: 20px 0 10px;
+}
+
+.menu-subgrupo:first-of-type { margin-top: 0; }
+
 .menu-vacio { color: var(--ink-soft); }
 
 .card { cursor: pointer; }
@@ -2140,6 +2151,16 @@ a.btn-enviar-link {
 .desglose-lista em { font-style: normal; font-size: 11.5px; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
 
 /* inventario */
+.inv-subtitulo {
+    font-size: 13px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    color: var(--navy);
+    margin: 20px 0 8px;
+}
+.inv-subtitulo:first-of-type { margin-top: 0; }
+
 .inv-tabla td { vertical-align: middle; }
 .inv-tabla tr.inv-agotado td:first-child strong { color: var(--danger); }
 .inv-tabla tr.inv-bajo td:first-child strong { color: var(--mustard-dark); }
