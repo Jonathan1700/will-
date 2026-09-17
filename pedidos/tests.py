@@ -4,7 +4,9 @@ from django.contrib.auth.models import User, Group
 from django.test import TestCase
 from django.urls import reverse
 
-from .models import DetalleOrden, Mesa, Orden, PiezaPollo, Producto, VarianteProducto, EstadoCuentaOrden
+from .models import (
+    ConsumoPieza, DetalleOrden, Mesa, Orden, PiezaPollo, Producto, VarianteProducto, EstadoCuentaOrden,
+)
 
 
 class FlujoPedidoCompletoTest(TestCase):
@@ -380,6 +382,69 @@ class ParaLlevarTest(TestCase):
         self.assertFalse(orden.cuentas_estado.get(cuenta=2).para_llevar)
         # 1/4 pollo (3.75 + 0.25 de envase) + combo de la cuenta 2 sin recargo (10.00)
         self.assertEqual(orden.total(), Decimal("3.75") + Decimal("0.25") + Decimal("10.00"))
+
+
+class ConsumoPiezasTest(TestCase):
+    """1/4, 1/2 y pollo entero traen fija la combinacion de presas que consumen (a
+    diferencia del 1/8, donde el mesero elige la presa): antes no descontaban nada."""
+
+    def setUp(self):
+        Group.objects.get_or_create(name="Mesero")
+        Group.objects.get_or_create(name="Cocina")
+        self.mesero = User.objects.create_user("mesero", password="1234")
+        self.mesero.groups.add(Group.objects.get(name="Mesero"))
+        self.cocina = User.objects.create_user("cocina", password="1234")
+        self.cocina.groups.add(Group.objects.get(name="Cocina"))
+        self.client.login(username="mesero", password="1234")
+
+        self.mesa = Mesa.objects.create(numero=1)
+        self.pechuga = PiezaPollo.objects.create(nombre="Pechuga", stock=10)
+        self.cadera = PiezaPollo.objects.create(nombre="Cadera", stock=10)
+        self.pierna = PiezaPollo.objects.create(nombre="Pierna", stock=10)
+        self.ala = PiezaPollo.objects.create(nombre="Ala", stock=10)
+
+        self.medio = Producto.objects.create(
+            nombre="1/2 Pollo a la brasa", precio=Decimal("6.50"), categoria="pollo"
+        )
+        for pieza in (self.pechuga, self.cadera, self.pierna, self.ala):
+            ConsumoPieza.objects.create(producto=self.medio, pieza=pieza, cantidad=1)
+
+    def test_medio_pollo_descuenta_una_de_cada_presa(self):
+        self.client.get(reverse("menu_mesa", args=[self.mesa.id]))
+        orden = Orden.objects.get(mesa=self.mesa, estado="abierta", es_venta_directa=False)
+        self.client.post(reverse("agregar_item", args=[orden.id, self.medio.id]))
+        self.client.post(reverse("confirmar_orden", args=[orden.id]))
+
+        for pieza in (self.pechuga, self.cadera, self.pierna, self.ala):
+            pieza.refresh_from_db()
+            self.assertEqual(pieza.stock, 9)
+
+    def test_dos_medios_pollo_descuentan_dos_de_cada_presa(self):
+        self.client.get(reverse("menu_mesa", args=[self.mesa.id]))
+        orden = Orden.objects.get(mesa=self.mesa, estado="abierta", es_venta_directa=False)
+        self.client.post(reverse("agregar_item", args=[orden.id, self.medio.id]))
+        self.client.post(reverse("agregar_item", args=[orden.id, self.medio.id]))
+        self.client.post(reverse("confirmar_orden", args=[orden.id]))
+
+        for pieza in (self.pechuga, self.cadera, self.pierna, self.ala):
+            pieza.refresh_from_db()
+            self.assertEqual(pieza.stock, 8)
+
+    def test_agregar_pollos_enteros_reparte_2_de_cada_presa_por_pollo(self):
+        self.client.logout()
+        self.client.login(username="cocina", password="1234")
+        respuesta = self.client.post(reverse("agregar_pollos_enteros"), {"cantidad": "5"})
+
+        self.assertEqual(respuesta.status_code, 200)
+        for pieza in (self.pechuga, self.cadera, self.pierna, self.ala):
+            pieza.refresh_from_db()
+            self.assertEqual(pieza.stock, 20)  # 10 + 5*2
+
+    def test_agregar_pollos_enteros_requiere_ser_cocina(self):
+        respuesta = self.client.post(reverse("agregar_pollos_enteros"), {"cantidad": "5"})
+        self.assertEqual(respuesta.status_code, 302)
+        self.pechuga.refresh_from_db()
+        self.assertEqual(self.pechuga.stock, 10)
 
 
 class CuentasSeparadasTest(TestCase):

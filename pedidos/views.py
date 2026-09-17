@@ -525,6 +525,11 @@ def confirmar_orden(request, orden_id):
             if pieza:
                 pieza.stock = max(0, pieza.stock - item.cantidad)
                 pieza.save()
+        # tamanos fijos (1/4, 1/2, entero): la combinacion de presas ya viene dada por el
+        # producto, no la elige el mesero (ver ConsumoPieza.__doc__)
+        for consumo in item.producto.consumo_piezas.select_related("pieza"):
+            consumo.pieza.stock = max(0, consumo.pieza.stock - consumo.cantidad * item.cantidad)
+            consumo.pieza.save()
 
     orden.estado = "enviada"
     orden.enviado_a_cocina = timezone.now()
@@ -738,6 +743,30 @@ def actualizar_stock_pieza(request, pieza_id):
     pieza.save()
     registrar(request.user, f"Actualizo presas de '{pieza.nombre}': {cantidad}")
     return JsonResponse({"ok": True, "stock": pieza.stock})
+
+
+@login_required
+@user_passes_test(es_cocina)
+@require_POST
+def agregar_pollos_enteros(request):
+    """Atajo para reponer todas las presas de una: cocina solo dice cuantos pollos
+    enteros salieron del horno y se reparte solo (2 de cada presa por pollo), sin tener
+    que ajustar cada rueda una por una a mano."""
+    try:
+        cantidad = int(request.POST.get("cantidad", 0))
+    except ValueError:
+        return JsonResponse({"ok": False, "error": "Cantidad invalida"}, status=400)
+    if cantidad <= 0:
+        return JsonResponse({"ok": False, "error": "Cantidad invalida"}, status=400)
+
+    piezas = {}
+    for pieza in PiezaPollo.objects.all():
+        pieza.stock += cantidad * PiezaPollo.POR_POLLO_ENTERO
+        pieza.save()
+        piezas[pieza.nombre] = pieza.stock
+
+    registrar(request.user, f"Agrego {cantidad} pollo(s) entero(s) al stock de presas")
+    return JsonResponse({"ok": True, "piezas": piezas})
 
 
 def disponibilidad_json(request):

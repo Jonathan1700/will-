@@ -91,6 +91,14 @@
 
 <aside class="control" aria-label="Disponibilidad">
     <h3 class="seccion-titulo">Presas disponibles</h3>
+    {% if piezas_pollo %}
+    <div class="agregar-pollos">
+        <span class="agregar-pollos-label">Salieron</span>
+        <input type="number" id="input-pollos" class="agregar-pollos-input" min="1" step="1" inputmode="numeric" placeholder="10">
+        <span class="agregar-pollos-label">pollos enteros</span>
+        <button type="button" id="btn-agregar-pollos" class="btn agregar-pollos-btn">Agregar presas</button>
+    </div>
+    {% endif %}
     <div class="piezas-grid">
         {% for pieza in piezas_pollo %}
         <div class="pieza-rueda" data-pieza="{{ pieza.nombre }}" data-url="{% url 'actualizar_stock_pieza' pieza.id %}" data-valor="{{ pieza.stock }}">
@@ -391,5 +399,27 @@ if (Object.keys(ruedasPorPieza).length) {
             .catch(() => {});
     }, 3000);
 }
+
+// "Salieron N pollos enteros": reparte 2 de cada presa por pollo sola, sin tocar
+// las ruedas una por una. Las ruedas se mueven solas con el resultado.
+(() => {
+    const btn = document.getElementById('btn-agregar-pollos');
+    const input = document.getElementById('input-pollos');
+    if (!btn || !input) return;
+    btn.addEventListener('click', () => {
+        const cantidad = parseInt(input.value, 10);
+        if (!cantidad || cantidad <= 0) return;
+        btn.disabled = true;
+        const datos = new URLSearchParams({ cantidad });
+        enviarCocina("{% url 'agregar_pollos_enteros' %}", datos).then(d => {
+            btn.disabled = false;
+            if (!d.ok) return;
+            input.value = '';
+            Object.entries(d.piezas).forEach(([nombre, stock]) => {
+                if (ruedasPorPieza[nombre]) ruedasPorPieza[nombre](stock);
+            });
+        }).catch(() => { btn.disabled = false; });
+    });
+})();
 </script>
 {% endblock %}

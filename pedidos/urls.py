@@ -33,6 +33,7 @@ urlpatterns = [
     path("cocina/producto/<int:producto_id>/toggle/", views.toggle_disponibilidad, name="toggle_disponibilidad"),
     path("cocina/producto/<int:producto_id>/temporizador/", views.poner_temporizador, name="poner_temporizador"),
     path("cocina/pieza/<int:pieza_id>/stock/", views.actualizar_stock_pieza, name="actualizar_stock_pieza"),
+    path("cocina/pieza/agregar-pollos/", views.agregar_pollos_enteros, name="agregar_pollos_enteros"),
     path("cocina/menestra/<int:tipo_id>/toggle/", views.toggle_menestra, name="toggle_menestra"),
 
     # admin / reportes

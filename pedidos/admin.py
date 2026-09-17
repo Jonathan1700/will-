@@ -1,7 +1,7 @@
 from django.contrib import admin
 from .models import (
     Mesa, Producto, Orden, DetalleOrden, RegistroAccion, PiezaPollo, VarianteProducto,
-    TipoMenestra, Gasto, GastoRecurrente, Cuenta, EstadoCuentaOrden,
+    ConsumoPieza, TipoMenestra, Gasto, GastoRecurrente, Cuenta, EstadoCuentaOrden,
 )
 
 
@@ -15,6 +15,11 @@ class VarianteProductoInline(admin.TabularInline):
     extra = 0
 
 
+class ConsumoPiezaInline(admin.TabularInline):
+    model = ConsumoPieza
+    extra = 0
+
+
 @admin.register(Producto)
 class ProductoAdmin(admin.ModelAdmin):
     list_display = ("nombre", "categoria", "tamano", "precio", "acompanamiento_incluido", "opciones_incluidas",
@@ -22,7 +27,7 @@ class ProductoAdmin(admin.ModelAdmin):
                     "requiere_pieza")
     list_editable = ("disponible", "stock", "precio_cambio", "tamano")
     list_filter = ("categoria", "tamano", "disponible", "controla_stock", "es_combo", "requiere_pieza")
-    inlines = [VarianteProductoInline]
+    inlines = [VarianteProductoInline, ConsumoPiezaInline]
 
 
 @admin.register(PiezaPollo)

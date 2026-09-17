@@ -130,6 +130,11 @@ class Producto(models.Model):
 class PiezaPollo(models.Model):
     """Presas de pollo (pechuga, ala, pierna...) que cocina tiene listas para servir.
     El mesero solo puede elegir una presa con stock > 0."""
+
+    # un pollo entero trae 2 de cada presa (2 pechugas, 2 caderas, 2 piernas, 2 alas):
+    # lo usa el atajo de cocina "salieron N pollos" para repartir el stock solo.
+    POR_POLLO_ENTERO = 2
+
     nombre = models.CharField(max_length=30, unique=True)
     orden = models.IntegerField(default=0)
     stock = models.IntegerField(default=0)
@@ -139,6 +144,22 @@ class PiezaPollo(models.Model):
 
     def __str__(self):
         return self.nombre
+
+
+class ConsumoPieza(models.Model):
+    """Cuantas presas de cada tipo consume un producto de pollo de tamano fijo (1/4, 1/2,
+    entero) al confirmarse el pedido. A diferencia de los combos 1/8 (donde el mesero elige
+    la presa), aqui el tamano ya trae fija la combinacion, ej: '1/2 Pollo' = 1 Pechuga +
+    1 Ala + 1 Pierna + 1 Cadera."""
+    producto = models.ForeignKey(Producto, related_name="consumo_piezas", on_delete=models.CASCADE)
+    pieza = models.ForeignKey(PiezaPollo, on_delete=models.CASCADE)
+    cantidad = models.PositiveIntegerField(default=1)
+
+    class Meta:
+        unique_together = [("producto", "pieza")]
+
+    def __str__(self):
+        return f"{self.producto.nombre}: {self.cantidad}x {self.pieza.nombre}"
 
 
 class TipoMenestra(models.Model):

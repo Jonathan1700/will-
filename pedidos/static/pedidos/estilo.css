@@ -1771,6 +1771,47 @@ a.btn-enviar-link {
 .control .disp-estado { font-size: 9px; padding: 2px 8px; }
 .control form { display: contents; }
 
+/* ---- "salieron N pollos enteros": reparte las presas sola, sin tocar cada rueda ---- */
+.agregar-pollos {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    background: var(--cream);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 10px;
+    margin-bottom: 12px;
+}
+
+.agregar-pollos-label {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--navy);
+}
+
+.agregar-pollos-input {
+    width: 64px;
+    height: 38px;
+    border: 1.5px solid var(--line);
+    border-radius: 8px;
+    padding: 0 10px;
+    font-family: inherit;
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--navy);
+    text-align: center;
+}
+
+.agregar-pollos-input:focus { border-color: var(--navy); outline: none; }
+
+.agregar-pollos-btn {
+    width: auto;
+    flex: 1;
+    min-width: 140px;
+    height: 38px;
+}
+
 /* ---- presas disponibles: rueda deslizable, como el selector de tiempo del celular ---- */
 .piezas-grid {
     display: grid;
