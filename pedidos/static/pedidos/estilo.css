@@ -831,26 +831,21 @@ table.ticket .t-num {
     margin-bottom: 10px;
 }
 
-.listo-card {
+/* una tarjeta por mesa (no por pedido): agrupa sus cuentas listas en filas
+   compactas, para que 3 cuentas de la misma mesa no ocupen 3 tarjetas enteras */
+.listo-mesa-card {
     background: #FFFFFF;
     border: 2px solid #2F5C2F;
     border-radius: 14px;
-    padding: 14px;
+    padding: 10px 14px 14px;
     box-shadow: 0 6px 16px rgba(47, 92, 47, 0.15);
 }
 
-.listo-link {
-    display: block;
-    color: inherit;
-    text-decoration: none;
-    cursor: pointer;
-}
-
-.listo-head {
+.listo-mesa-head {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 6px;
+    padding: 4px 0 8px;
 }
 
 .listo-mesa {
@@ -870,35 +865,61 @@ table.ticket .t-num {
     border-radius: 20px;
 }
 
-.listo-detalle {
-    font-size: 12px;
-    color: var(--ink-soft);
-    line-height: 1.5;
-    margin: 0 0 10px;
+/* fila = un pedido/cuenta de la mesa. El texto lleva al detalle; el boton
+   "Entregar" queda aparte, a la derecha, al alcance del pulgar. */
+.listo-fila {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 0;
+    border-top: 1px dashed #D9D0BC;
 }
 
-.listo-foot {
+.listo-fila:first-of-type {
+    border-top: none;
+    padding-top: 2px;
+}
+
+.listo-fila-link {
+    flex: 1;
+    min-width: 0;
+    color: inherit;
+    text-decoration: none;
+}
+
+.listo-fila-top {
     display: flex;
     justify-content: space-between;
-    align-items: center;
+    align-items: baseline;
+    gap: 8px;
 }
 
-.listo-totales {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-}
-
-.listo-total {
-    font-family: 'Anton', sans-serif;
-    font-size: 17px;
+.listo-fila-nombre {
+    font-weight: 700;
+    font-size: 13.5px;
     color: var(--navy);
 }
 
+.listo-total-fila {
+    font-family: 'Anton', sans-serif;
+    font-size: 15px;
+    color: var(--navy);
+    white-space: nowrap;
+}
+
+.listo-fila-detalle {
+    font-size: 11.5px;
+    color: var(--ink-soft);
+    line-height: 1.4;
+    margin: 2px 0 0;
+}
+
 .listo-total-llevar {
+    display: block;
     font-size: 11px;
     font-weight: 700;
     color: var(--mustard-dark);
+    margin-top: 2px;
 }
 
 .listo-btn {
@@ -912,6 +933,25 @@ table.ticket .t-num {
     padding: 10px 14px;
     border-radius: 6px;
     cursor: pointer;
+}
+
+.listo-btn-fila {
+    font-size: 10.5px;
+    padding: 9px 12px;
+    flex-shrink: 0;
+}
+
+.listo-todo-form {
+    margin-top: 8px;
+    padding-top: 10px;
+    border-top: 1px dashed #D9D0BC;
+}
+
+.listo-btn-todo {
+    width: 100%;
+    font-size: 12.5px;
+    padding: 12px 14px;
+    border-radius: 8px;
 }
 
 .aviso-listos {

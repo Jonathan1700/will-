@@ -24,6 +24,7 @@ urlpatterns = [
     path("api/listas/", views.ordenes_listas_json, name="ordenes_listas_json"),
     path("mesa/<int:mesa_id>/cuenta/<int:cuenta>/entregar/", views.entregar_grupo, name="entregar_grupo"),
     path("mesa/<int:mesa_id>/cuenta/<int:cuenta>/detalle/", views.detalle_pedido, name="detalle_pedido"),
+    path("mesa/<int:mesa_id>/entregar-todo/", views.entregar_mesa, name="entregar_mesa"),
 
     # cocina xd
     path("cocina/", views.panel_cocina, name="panel_cocina"),

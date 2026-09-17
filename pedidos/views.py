@@ -128,6 +128,21 @@ def elegir_mesa(request):
     # total ya con el recargo por llevar sumado, para la tarjeta del mesero
     for grupo in pendientes:
         grupo["total_llevar"] = grupo["total"] + grupo["recargo_llevar"]
+
+    # una tarjeta por mesa con cada pedido como fila adentro (no una tarjeta entera por
+    # pedido): una mesa con 3 cuentas listas antes ocupaba 3 tarjetas completas.
+    mesas_listas = []
+    indice_mesa = {}
+    for grupo in pendientes:
+        mesa_id = grupo["mesa"].id
+        entrada = indice_mesa.get(mesa_id)
+        if entrada is None:
+            entrada = {"mesa": grupo["mesa"], "pedidos": [], "total": 0}
+            indice_mesa[mesa_id] = entrada
+            mesas_listas.append(entrada)
+        entrada["pedidos"].append(grupo)
+        entrada["total"] += grupo["total_llevar"]
+
     # ids en el mismo formato que ordenes_listas_json, para que el polling de la tablet
     # detecte cambios aunque la tarjeta agrupada no cambie de cantidad (ej: se agrego una
     # venta directa a una cuenta que ya tenia un pedido de cocina listo).
@@ -135,7 +150,7 @@ def elegir_mesa(request):
 
     return render(request, "pedidos/elegir_mesa.html", {
         "mesas": mesas,
-        "ordenes_listas": pendientes,
+        "mesas_listas": mesas_listas,
         "ids_listas": ids_listas,
     })
 
@@ -230,6 +245,18 @@ def ordenes_listas_json(request):
     return JsonResponse({"listas": data})
 
 
+def _marcar_entregados(estados):
+    """Marca cada EstadoCuentaOrden como entregado y cierra su orden si ya no le
+    falta que se entregue ningun otro pedido."""
+    for estado in estados:
+        estado.entregado = True
+        estado.save()
+        orden = estado.orden
+        if not EstadoCuentaOrden.objects.filter(orden=orden, entregado=False).exists():
+            orden.estado = "cerrada"
+            orden.save()
+
+
 @login_required
 @user_passes_test(es_mesero)
 @require_POST
@@ -244,15 +271,29 @@ def entregar_grupo(request, mesa_id, cuenta):
     )
     mesa = get_object_or_404(Mesa, id=mesa_id)
 
-    for estado in estados:
-        estado.entregado = True
-        estado.save()
-        orden = estado.orden
-        if not EstadoCuentaOrden.objects.filter(orden=orden, entregado=False).exists():
-            orden.estado = "cerrada"
-            orden.save()
+    _marcar_entregados(estados)
 
     registrar(request.user, f"Entrego pedido {cuenta} - Mesa {mesa.numero}")
+    return redirect("elegir_mesa")
+
+
+@login_required
+@user_passes_test(es_mesero)
+@require_POST
+def entregar_mesa(request, mesa_id):
+    """Atajo para cuando coinciden varias cuentas listas de la misma mesa: las entrega
+    y cobra todas juntas de una vez, en vez de una por una."""
+    estados = list(
+        EstadoCuentaOrden.objects.filter(
+            orden__mesa_id=mesa_id, listo=True, entregado=False,
+        ).select_related("orden", "orden__mesa")
+    )
+    mesa = get_object_or_404(Mesa, id=mesa_id)
+
+    _marcar_entregados(estados)
+
+    cuentas = ", ".join(str(c) for c in sorted({e.cuenta for e in estados}))
+    registrar(request.user, f"Entrego pedidos {cuentas} - Mesa {mesa.numero}")
     return redirect("elegir_mesa")
 
 
