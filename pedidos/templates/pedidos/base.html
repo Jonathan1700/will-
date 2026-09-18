@@ -9,6 +9,12 @@
     <link rel="manifest" href="{% static 'pedidos/manifest.webmanifest' %}">
     <meta name="theme-color" content="#1B2A4A">
     <meta name="mobile-web-app-capable" content="yes">
+    {# iOS/iPadOS no lee el manifest.webmanifest como Android: sin esto, "Agregar a
+       inicio" desde Safari abre igual dentro de Safari (con su barra), en vez de
+       quedar sin barra como una app. #}
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Brasas">
     <link rel="apple-touch-icon" href="{% static 'pedidos/iconos/icono-192.png' %}">
 <script>
 // ---------------------------------------------------------------------------------
@@ -91,21 +97,59 @@
     window.addEventListener('popstate', () => activa() ? cargar(location.href) : location.reload());
 })();
 
-// Boton ⛶ de la cabecera. Si la app se abrio desde el icono de la pantalla de inicio
-// (modo app) ya esta a pantalla completa y el boton se oculta.
+// Wake Lock: evita que la tablet se apague sola con la pantalla prendida horas
+// (cocina/mesero). Solo se puede pedir durante un gesto real del usuario en Safari,
+// por eso se pide junto con el toque del boton de pantalla completa, no solo. El
+// navegador lo suelta solo apenas la pestaña se oculta, asi que se vuelve a pedir
+// cada vez que vuelve a estar visible.
 (() => {
+    let candado = null;
+    const pedir = async () => {
+        if (!('wakeLock' in navigator)) return;
+        try { candado = await navigator.wakeLock.request('screen'); } catch (e) {}
+    };
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible' && window.PANTALLA_SIEMPRE_ENCENDIDA) pedir();
+    });
+    window.pedirPantallaEncendida = () => {
+        window.PANTALLA_SIEMPRE_ENCENDIDA = true;
+        pedir();
+    };
+})();
+
+// Boton ⛶ de la cabecera. Si la app se abrio desde el icono de la pantalla de inicio
+// (modo app) ya esta a pantalla completa y el boton se oculta. iOS/iPadOS no tiene API
+// de pantalla completa para paginas normales (ni Safari ni Chrome-en-iOS, es asi en todo
+// iOS): ahi la unica forma real es agregarla a la pantalla de inicio, asi que el boton
+// se deja visible pero explica eso en vez de intentar algo que no va a funcionar.
+(() => {
+    const esIOS = /iPad|iPhone|iPod/.test(navigator.userAgent)
+        || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);   // iPadOS se anuncia como Mac
     const enModoApp = matchMedia('(display-mode: fullscreen), (display-mode: standalone)').matches;
-    const soporta = !!document.documentElement.requestFullscreen;
+    const soportaFullscreen = !!document.documentElement.requestFullscreen;
+    const necesitaInicio = esIOS && !enModoApp && !soportaFullscreen;
+
     const pintar = () => {
         const btn = document.getElementById('btn-fullscreen');
         if (!btn) return;
-        if (enModoApp || !soporta) { btn.hidden = true; return; }
+        if (enModoApp) { btn.hidden = true; return; }
+        if (!soportaFullscreen && !necesitaInicio) { btn.hidden = true; return; }
+        if (necesitaInicio) {
+            btn.textContent = '⛶';
+            btn.title = 'Agregar a inicio para pantalla completa';
+            return;
+        }
         const activo = !!document.fullscreenElement;
         btn.textContent = activo ? '✕ salir' : '⛶';
         btn.title = activo ? 'Salir de pantalla completa' : 'Pantalla completa';
     };
     document.addEventListener('click', e => {
         if (!e.target.closest('#btn-fullscreen')) return;
+        window.pedirPantallaEncendida();
+        if (necesitaInicio) {
+            alert('Para pantalla completa en este iPad/iPhone:\n\nToca el boton de compartir (⬆️) de Safari y elegi "Agregar a inicio". Al abrirla desde ese icono queda sin la barra de arriba.\n\n(Mientras tanto la pantalla ya va a quedarse encendida sin apagarse sola.)');
+            return;
+        }
         if (document.fullscreenElement) document.exitFullscreen();
         else document.documentElement.requestFullscreen().catch(() => {});
     });
