@@ -9,9 +9,7 @@
     <link rel="manifest" href="{% static 'pedidos/manifest.webmanifest' %}">
     <meta name="theme-color" content="#1B2A4A">
     <meta name="mobile-web-app-capable" content="yes">
-    {# iOS/iPadOS no lee el manifest.webmanifest como Android: sin esto, "Agregar a
-       inicio" desde Safari abre igual dentro de Safari (con su barra), en vez de
-       quedar sin barra como una app. #}
+    {# iOS/iPadOS no lee el manifest.webmanifest: sin esto, "Agregar a inicio" desde Safari abre dentro de Safari con su barra, en vez de quedar sin barra como una app. #}
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Brasas">
