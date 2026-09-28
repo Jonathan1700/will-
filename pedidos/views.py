@@ -914,7 +914,7 @@ def _ordenes_periodo(desde, hasta):
         creado__date__gte=desde,
         creado__date__lte=hasta,
         estado__in=["entregada", "cerrada"],
-    ).select_related("mesa").prefetch_related("items__producto", "items__acompanamiento")
+    ).select_related("mesa").prefetch_related("items__producto", "items__acompanamiento", "cuentas_estado")
 
 
 def _resumen(ordenes):

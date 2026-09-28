@@ -97,19 +97,17 @@
                 <span class="panel-sub">Unidades por producto, agrupadas por categoría. Los cambios de acompañamiento se cuentan aparte.</span>
             </header>
             {% if desglose %}
-            <div class="desglose">
+            <div class="cats">
                 {% for cat in desglose %}
-                <div class="desglose-cat">
-                    <div class="desglose-head">
-                        <span class="desglose-nombre">{{ cat.nombre }}</span>
-                        <span class="desglose-total">{{ cat.cantidad }} ud{{ cat.cantidad|pluralize }} · {{ cat.ingresos|dinero }}</span>
-                    </div>
-                    <ul class="desglose-lista">
-                        {% for f in cat.filas %}
-                        <li><strong>{{ f.cantidad }}</strong><span>{{ f.nombre }}</span><em>{{ f.ingresos|dinero }}</em></li>
-                        {% endfor %}
-                    </ul>
-                </div>
+                <details class="cat" {% if forloop.first %}open{% endif %}>
+                    <summary>
+                        <span>{{ cat.nombre|upper }}</span>
+                        <span>{{ cat.cantidad }} ud{{ cat.cantidad|pluralize }} · {{ cat.ingresos|dinero }}</span>
+                    </summary>
+                    {% for f in cat.filas %}
+                    <div class="fila-vendido"><b>{{ f.cantidad }}</b><span>{{ f.nombre }}</span><em>{{ f.ingresos|dinero }}</em></div>
+                    {% endfor %}
+                </details>
                 {% endfor %}
             </div>
             {% else %}
@@ -124,36 +122,28 @@
                 <h2>Todas las órdenes del período</h2>
                 <span class="panel-sub">{{ todas|length }} orden{{ todas|length|pluralize:"es" }} · {{ etiqueta }}</span>
             </header>
-            <div class="tabla-scroll tabla-alta">
-                <table class="tabla">
-                    <thead>
-                        <tr><th>#</th><th>Mesa</th><th>Fecha</th><th>Detalle</th><th class="num">Items</th><th class="num">Total</th></tr>
-                    </thead>
-                    <tbody>
-                        {% for o in todas %}
-                        <tr>
-                            <td class="mono">{{ o.id }}</td>
-                            <td class="mono">
-                                Mesa {{ o.mesa.numero }}
-                                {% if o.es_venta_directa %}<span class="chip chip-cambio"> directa</span>{% endif %}
-                                {% if o.para_llevar %}<span class="chip chip-cambio"> llevar</span>{% endif %}
-                            </td>
-                            <td class="mono">{{ o.creado|date:"d/m H:i" }}</td>
-                            <td class="detalle">{% for it in o.items.all %}{{ it.cantidad }}x {{ it.descripcion }}{% if not forloop.last %} · {% endif %}{% endfor %}</td>
-                            <td class="num">{% with n=o.items.all %}{{ n|length }}{% endwith %}</td>
-                            <td class="num"><strong>{{ o.total|dinero }}</strong></td>
-                        </tr>
-                        {% empty %}
-                        <tr><td colspan="6" class="vacio">Sin órdenes en este período.</td></tr>
-                        {% endfor %}
-                    </tbody>
-                    {% if todas %}
-                    <tfoot>
-                        <tr><td colspan="5" class="num"><strong>Total del período</strong></td><td class="num"><strong>{{ kpi.ingresos|dinero }}</strong></td></tr>
-                    </tfoot>
-                    {% endif %}
-                </table>
-            </div>
+            {% for o in todas %}
+            <article class="orden-tarjeta">
+                <header>
+                    <span class="orden-num">#{{ o.id }}</span>
+                    <span class="chip">Mesa {{ o.mesa.numero }}</span>
+                    {% if o.es_venta_directa %}<span class="chip chip-cambio">directa</span>{% endif %}
+                    {% if o.para_llevar %}<span class="chip chip-cambio">llevar</span>{% endif %}
+                    <time>{{ o.creado|date:"H:i" }}</time>
+                    <span class="orden-total">{{ o.total|dinero }}</span>
+                </header>
+                <ul>
+                    {% for it in o.items.all %}
+                    <li>{{ it.cantidad }}× {{ it.descripcion }}</li>
+                    {% endfor %}
+                </ul>
+            </article>
+            {% empty %}
+            <p class="vacio">Sin órdenes en este período.</p>
+            {% endfor %}
+            {% if todas %}
+            <p class="orden-total-periodo">Total del período: <strong>{{ kpi.ingresos|dinero }}</strong></p>
+            {% endif %}
         </section>
         </div>
     </div>
@@ -174,46 +164,35 @@
                 {% regroup inventario by p.get_categoria_display as grupos_inventario %}
                 {% for grupo in grupos_inventario %}
                 <h3 class="inv-subtitulo">{{ grupo.grouper }}</h3>
-                <div class="tabla-scroll">
-                    <table class="tabla inv-tabla">
-                        <thead>
-                            <tr>
-                                <th>Producto</th>{% if grupo.grouper == "Gaseosas" %}<th>Tamaño</th>{% endif %}<th class="num">Vendidas en el período</th>
-                                <th>Llevar conteo</th><th>Unidades en stock</th><th class="num">Precio de compra</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for fila in grupo.list %}
-                            {% with p=fila.p %}
-                            <tr class="{% if p.controla_stock and p.stock == 0 %}inv-agotado{% elif p.stock_bajo %}inv-bajo{% endif %}">
-                                <td><strong>{{ p.nombre }}</strong></td>
-                                {% if grupo.grouper == "Gaseosas" %}<td class="detalle">{{ p.get_tamano_display }}</td>{% endif %}
-                                <td class="num">{{ fila.vendidas }}</td>
-                                <td>
-                                    <label class="inv-switch">
-                                        <input type="checkbox" name="controla_{{ p.id }}" value="1" {% if p.controla_stock %}checked{% endif %} data-fila="{{ p.id }}">
-                                        <span></span>
-                                    </label>
-                                </td>
-                                <td>
-                                    <input type="number" min="0" step="1" name="stock_{{ p.id }}" id="stock-{{ p.id }}" class="inv-input"
-                                           value="{{ p.stock|default_if_none:'' }}" {% if not p.controla_stock %}disabled{% endif %}>
-                                </td>
-                                <td class="num">
-                                    <span class="inv-precio-wrap">
-                                        <span class="inv-precio-signo">$</span>
-                                        <input type="number" min="0" step="0.01" name="precio_compra_{{ p.id }}" class="inv-input"
-                                               placeholder="0.00" value="{{ p.precio_compra|default_if_none:'' }}">
-                                    </span>
-                                </td>
-                            </tr>
-                            {% endwith %}
-                            {% endfor %}
-                        </tbody>
-                    </table>
+                {% for fila in grupo.list %}
+                {% with p=fila.p %}
+                <div class="bebida-tarjeta {% if p.controla_stock %}con-conteo{% endif %} {% if p.controla_stock and p.stock == 0 %}inv-agotado{% elif p.stock_bajo %}inv-bajo{% endif %}">
+                    <div class="bebida-cab">
+                        <div>
+                            <span class="bebida-nombre">{{ p.nombre }}</span>
+                            <small>{% if grupo.grouper == "Gaseosas" %}{{ p.get_tamano_display }} · {% endif %}Vendidas: {{ fila.vendidas }}</small>
+                        </div>
+                        <label class="sw">
+                            <span>Llevar conteo</span>
+                            <input type="checkbox" name="controla_{{ p.id }}" value="1" {% if p.controla_stock %}checked{% endif %} class="inv-switch-input" aria-label="Llevar conteo de {{ p.nombre }}">
+                            <i></i>
+                        </label>
+                    </div>
+                    <div class="bebida-campos">
+                        <label>Unidades en stock
+                            <input type="number" min="0" step="1" inputmode="numeric" name="stock_{{ p.id }}" id="stock-{{ p.id }}"
+                                   value="{{ p.stock|default_if_none:'' }}" {% if not p.controla_stock %}disabled{% endif %}>
+                        </label>
+                        <label>Precio de compra
+                            <input type="number" min="0" step="0.01" inputmode="decimal" name="precio_compra_{{ p.id }}"
+                                   placeholder="0.00" value="{{ p.precio_compra|default_if_none:'' }}">
+                        </label>
+                    </div>
                 </div>
+                {% endwith %}
                 {% endfor %}
-                <div class="inv-acciones">
+                {% endfor %}
+                <div class="barra-guardar-sticky">
                     <button type="submit" class="btn-guardar">Guardar inventario</button>
                 </div>
             </form>
@@ -648,10 +627,11 @@ function llenarGasto(boton) {
 }
 
 // Inventario: el switch habilita el campo de stock de esa fila
-document.querySelectorAll('.inv-switch input').forEach(chk => {
+document.querySelectorAll('.inv-switch-input').forEach(chk => {
     chk.addEventListener('change', () => {
-        const fila = chk.closest('tr');
-        const input = fila.querySelector('input[name^="stock_"]');
+        const tarjeta = chk.closest('.bebida-tarjeta');
+        tarjeta.classList.toggle('con-conteo', chk.checked);
+        const input = tarjeta.querySelector('input[name^="stock_"]');
         input.disabled = !chk.checked;
         if (chk.checked && input.value === '') input.value = 0;
     });
