@@ -39,7 +39,9 @@
         // los <script> insertados asi no corren solos: se recrean (envueltos para no chocar consts)
         document.body.querySelectorAll('script').forEach(viejo => {
             const nuevo = document.createElement('script');
-            nuevo.textContent = '(() => {\n' + viejo.textContent + '\n})();';
+            if (viejo.src) { nuevo.src = viejo.src; nuevo.async = false; }
+            else if (viejo.type === 'application/json') { return; }
+            else { nuevo.textContent = '(() => {\n' + viejo.textContent + '\n})();'; }
             viejo.replaceWith(nuevo);
         });
         if (url && url !== location.href) history.pushState({}, '', url);

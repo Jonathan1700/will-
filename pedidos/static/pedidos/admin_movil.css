@@ -547,3 +547,24 @@
     .panel-admin-movil .bnav { max-width: 640px; margin: 0 auto; left: 0; right: 0; border-radius: 14px 14px 0 0; border-left: 1px solid var(--line); border-right: 1px solid var(--line); }
     .panel-admin-movil dialog.hoja { max-width: 480px; margin: auto; border-radius: 22px; }
 }
+
+/* Correcciones de aislamiento y ancho del panel móvil. */
+.panel-admin-movil [hidden] { display: none !important; }
+.dash.panel-admin-movil { width: 100%; padding: 0 0 calc(144px + env(safe-area-inset-bottom)); --navy: #1B2A4E; --mustard: #F2A63B; --cream: #F5EEE2; }
+.panel-admin-movil > [data-grupo="resumen"] { padding: 4px 16px 12px; }
+.panel-admin-movil .contenido, .panel-admin-movil .panel, .panel-admin-movil .nav-fecha, .panel-admin-movil .bebida-cab > div, .panel-admin-movil .fila-vendido span { min-width: 0; }
+.panel-admin-movil .filtro-etiqueta { margin: 0; font-size: 12px; }
+.panel-admin-movil .subtabs { position: static; }
+.panel-admin-movil .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.panel-admin-movil .kpis-fila { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.panel-admin-movil .kpis .kpi { padding: 12px 8px; }
+.panel-admin-movil .kpis .kpi-valor { font-size: clamp(18px, 5vw, 26px); overflow-wrap: anywhere; }
+.panel-admin-movil .kpi-hero .kpi-valor { overflow-wrap: anywhere; }
+.panel-admin-movil .tabla-scroll { max-width: 100%; overflow-x: auto; }
+.panel-admin-movil .orden-tarjeta header, .panel-admin-movil .cat summary { flex-wrap: wrap; }
+.panel-admin-movil .bebida-nombre, .panel-admin-movil .rank-item span { overflow-wrap: anywhere; }
+.panel-admin-movil .bebida-campos { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.panel-admin-movil .sw { flex-shrink: 0; min-height: 44px; flex-direction: column; gap: 3px; }
+.panel-admin-movil .bnav button { min-width: 0; flex-basis: 0; }
+.panel-admin-movil dialog.hoja { width: min(100%, 520px); max-width: 100vw; margin-left: auto; margin-right: auto; }
+.panel-admin-movil :is(button, a, input, select, summary):focus-visible { outline: 3px solid var(--mustard); outline-offset: 2px; }
