@@ -421,6 +421,7 @@ table.ticket .t-num {
 }
 
 .t-cambio { color: var(--danger); }
+.t-agregado { color: var(--ok); }
 
 .ticket-total {
     display: flex;
