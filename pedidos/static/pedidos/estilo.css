@@ -1874,138 +1874,13 @@ a.btn-enviar-link {
     padding: 18px 20px 48px;
 }
 
-.dash-filtros {
-    display: flex;
-    align-items: center;
-    gap: 14px;
-    flex-wrap: wrap;
-    margin-bottom: 18px;
-}
-
-.rangos {
-    display: inline-flex;
-    background: #FFFFFF;
-    border: 1px solid var(--line);
-    border-radius: 10px;
-    padding: 3px;
-    gap: 2px;
-}
-
-.rango {
-    padding: 8px 16px;
-    border-radius: 8px;
-    font-size: 12.5px;
-    font-weight: 700;
-    color: var(--ink-soft);
-    text-decoration: none;
-}
-
-.rango.activo { background: var(--navy); color: var(--cream); }
-
-.navegar {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    background: #FFFFFF;
-    border: 1px solid var(--line);
-    border-radius: 10px;
-    padding: 3px;
-}
-
-.nav-btn {
-    width: 34px;
-    height: 34px;
-    display: grid;
-    place-items: center;
-    border-radius: 8px;
-    color: var(--navy);
+.filtro-etiqueta {
+    margin: 2px 0 0;
+    text-align: center;
     font-size: 12px;
-    text-decoration: none;
-}
-
-.nav-btn:hover { background: var(--cream); }
-
-.nav-fecha input {
-    height: 34px;
-    border: none;
-    background: transparent;
-    font-family: inherit;
-    font-size: 13px;
-    font-weight: 700;
-    color: var(--navy);
-    padding: 0 6px;
-    cursor: pointer;
-}
-
-.nav-hoy {
-    margin: 0 6px 0 2px;
-    padding: 6px 10px;
-    border-radius: 8px;
-    background: var(--cream);
-    color: var(--navy);
-    font-size: 11.5px;
-    font-weight: 700;
-    text-decoration: none;
-    white-space: nowrap;
-}
-
-.dash-etiqueta {
-    font-size: 13px;
     font-weight: 600;
     color: var(--ink-soft);
 }
-
-.btn-exportar {
-    margin-left: auto;
-    padding: 9px 16px;
-    border-radius: 8px;
-    background: #FFFFFF;
-    border: 1.5px solid var(--navy);
-    color: var(--navy);
-    font-size: 12.5px;
-    font-weight: 700;
-    text-decoration: none;
-}
-
-/* ---- menu lateral + contenido ---- */
-.dash-cuerpo {
-    display: grid;
-    grid-template-columns: 210px minmax(0, 1fr);
-    gap: 18px;
-    align-items: start;
-}
-
-.dash-menu {
-    position: sticky;
-    top: calc(var(--top-h) + 14px);
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    background: #FFFFFF;
-    border: 1px solid var(--line);
-    border-radius: 14px;
-    padding: 8px;
-}
-
-.menu-item {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 11px 12px;
-    border-radius: 10px;
-    font-size: 13px;
-    font-weight: 700;
-    color: var(--ink-soft);
-    text-decoration: none;
-}
-
-
-.menu-item:hover { background: var(--cream); color: var(--navy); }
-.menu-item.activo { background: var(--navy); color: var(--cream); }
-.menu-externo { margin-top: 6px; border-top: 1px solid var(--line); border-radius: 0 0 10px 10px; padding-top: 14px; }
-
-.dash-contenido { min-width: 0; }
-.seccion[hidden] { display: none; }
 
 /* ---- indicadores ---- */
 .kpis {
@@ -2417,17 +2292,6 @@ a.btn-enviar-link {
     .kpis { grid-template-columns: repeat(2, 1fr); }
     .kpi-hero { grid-column: 1 / -1; }
     .dash-grid { grid-template-columns: 1fr; }
-    .dash-cuerpo { grid-template-columns: 1fr; }
-    .dash-menu {
-        position: static;
-        flex-direction: row;
-        overflow-x: auto;
-        -webkit-overflow-scrolling: touch;
-        scrollbar-width: none;
-    }
-    .dash-menu::-webkit-scrollbar { display: none; }
-    .menu-item { white-space: nowrap; }
-    .menu-externo { margin: 0 0 0 auto; border: none; padding-top: 11px; }
 }
 
 /* celular: el dashboard se usa mucho para cargar gastos del dia sobre la marcha,
@@ -2440,23 +2304,10 @@ a.btn-enviar-link {
 
     .dash { padding: 14px 14px 40px; }
 
-    .dash-filtros { gap: 10px; }
-    .rangos, .navegar { flex: 1 1 100%; justify-content: center; }
-    .rango { flex: 1; text-align: center; padding: 10px 8px; }
-    .dash-etiqueta { order: 3; flex: 1 1 100%; }
-    .btn-exportar {
-        order: 4;
-        flex: 1 1 100%;
-        margin-left: 0;
-        text-align: center;
-        display: block;
-    }
-
     .kpis { grid-template-columns: 1fr; }
     .kpi-hero .kpi-valor { font-size: 32px; }
 
     .panel { padding: 14px 14px 12px; }
-    .menu-item { padding: 10px 12px; font-size: 12.5px; }
 
     .gasto-form { gap: 10px; }
     .campo-gasto,

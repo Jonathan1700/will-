@@ -1,59 +1,46 @@
 {% extends "pedidos/base.html" %}
-{% load formato %}
+{% load static formato %}
 {% block titulo %}Panel de administración{% endblock %}
+{% block extra_head %}
+<link rel="stylesheet" href="{% static 'pedidos/admin_movil.css' %}?v={{ admin_movil_css_version }}">
+{% endblock %}
 {% block contenido %}
+<div class="dash panel-admin-movil" data-grupo="resumen">
+
 <header class="top">
     <span class="titulo">Brasas</span>
     <span class="mesa">Admin</span>
     <span class="top-acciones">
-        <a href="{% url 'logout' %}" class="top-salir">Salir</a>
+        <a class="top-icono" aria-label="Exportar a Excel" href="{% url 'exportar_excel' %}?rango={{ rango }}&fecha={{ ancla|date:'Y-m-d' }}">
+            {% include "pedidos/icons/descargar.svg" %}
+        </a>
     </span>
 </header>
 
-<div class="dash">
-
-    {# ---- filtros: una fila, rango primero ---- #}
-    <div class="dash-filtros">
-        <div class="rangos" role="group" aria-label="Tipo de período">
-            <a href="?rango=dia&fecha={{ ancla|date:'Y-m-d' }}" class="rango {% if rango == 'dia' %}activo{% endif %}">Día</a>
-            <a href="?rango=semana&fecha={{ ancla|date:'Y-m-d' }}" class="rango {% if rango == 'semana' %}activo{% endif %}">Semana</a>
-            <a href="?rango=mes&fecha={{ ancla|date:'Y-m-d' }}" class="rango {% if rango == 'mes' %}activo{% endif %}">Mes</a>
-        </div>
-
-        <div class="navegar" role="group" aria-label="Cambiar de período">
-            <a href="?rango={{ rango }}&fecha={{ nav_anterior|date:'Y-m-d' }}" class="nav-btn" aria-label="Periodo anterior" title="Anterior">◀</a>
-            <form method="get" class="nav-fecha">
-                <input type="hidden" name="rango" value="{{ rango }}">
-                {% if rango == 'mes' %}
-                <input type="month" name="fecha" value="{{ ancla|date:'Y-m' }}" aria-label="Elegir mes" onchange="this.form.requestSubmit()">
-                {% else %}
-                <input type="date" name="fecha" value="{{ ancla|date:'Y-m-d' }}" aria-label="Elegir fecha" onchange="this.form.requestSubmit()">
-                {% endif %}
-            </form>
-            <a href="?rango={{ rango }}&fecha={{ nav_siguiente|date:'Y-m-d' }}" class="nav-btn" aria-label="Periodo siguiente" title="Siguiente">▶</a>
-            {% if not es_hoy %}<a href="?rango={{ rango }}" class="nav-hoy">Volver a hoy</a>{% endif %}
-        </div>
-
-        <span class="dash-etiqueta">{{ etiqueta }}</span>
-        <a href="{% url 'exportar_excel' %}?rango={{ rango }}&fecha={{ ancla|date:'Y-m-d' }}" class="btn-exportar" data-nav="normal">⬇ Exportar Excel</a>
+<div class="filtro-periodo">
+    <div class="seg" role="group" aria-label="Tipo de período">
+        <a href="?rango=dia&fecha={{ ancla|date:'Y-m-d' }}" class="{% if rango == 'dia' %}on{% endif %}">Día</a>
+        <a href="?rango=semana&fecha={{ ancla|date:'Y-m-d' }}" class="{% if rango == 'semana' %}on{% endif %}">Semana</a>
+        <a href="?rango=mes&fecha={{ ancla|date:'Y-m-d' }}" class="{% if rango == 'mes' %}on{% endif %}">Mes</a>
     </div>
+    <div class="fecha" role="group" aria-label="Cambiar de período">
+        <a href="?rango={{ rango }}&fecha={{ nav_anterior|date:'Y-m-d' }}" class="nav-btn" aria-label="Período anterior">‹</a>
+        <form method="get" class="nav-fecha">
+            <input type="hidden" name="rango" value="{{ rango }}">
+            {% if rango == 'mes' %}
+            <input type="month" name="fecha" value="{{ ancla|date:'Y-m' }}" aria-label="Elegir mes" onchange="this.form.requestSubmit()">
+            {% else %}
+            <input type="date" name="fecha" value="{{ ancla|date:'Y-m-d' }}" aria-label="Elegir fecha" onchange="this.form.requestSubmit()">
+            {% endif %}
+        </form>
+        <a href="?rango={{ rango }}&fecha={{ nav_siguiente|date:'Y-m-d' }}" class="nav-btn" aria-label="Período siguiente">›</a>
+        {% if not es_hoy %}<a href="?rango={{ rango }}" class="nav-hoy">Hoy</a>{% endif %}
+    </div>
+    <p class="filtro-etiqueta">{{ etiqueta }}</p>
+</div>
 
-    <div class="dash-cuerpo">
-
-        <nav class="dash-menu" aria-label="Secciones">
-            <a href="#resumen" class="menu-item activo" data-seccion="resumen">Resumen</a>
-            <a href="#vendido" class="menu-item" data-seccion="vendido">Qué se vendió</a>
-            <a href="#bebidas" class="menu-item" data-seccion="bebidas">Bebidas</a>
-            <a href="#ordenes" class="menu-item" data-seccion="ordenes">Órdenes</a>
-            <a href="#gastos" class="menu-item" data-seccion="gastos">Gastos y ganancia</a>
-            <a href="#fijos" class="menu-item" data-seccion="fijos">Gastos fijos</a>
-            <a href="#margenes" class="menu-item" data-seccion="margenes">Margen por grupo</a>
-            <a href="/admin/" class="menu-item menu-externo" data-nav="normal">Productos y usuarios</a>
-        </nav>
-
-        <div class="dash-contenido">
-
-            <section class="seccion" id="sec-resumen">
+    {# ==================== RESUMEN ==================== #}
+    <div data-grupo="resumen">
     <div class="kpis">
         <div class="kpi kpi-hero">
             <p class="kpi-label">Ingresos</p>
@@ -77,28 +64,33 @@
         </div>
     </div>
 
-                <div class="dash-grid">
+    <div class="dash-grid">
         <section class="panel panel-ancho">
             <header class="panel-head">
                 <h2>{{ titulo_serie }}</h2>
-                <span class="panel-sub">Ingresos por {% if rango == 'dia' %}hora{% else %}dia{% endif %} · pasa el dedo para ver el detalle</span>
+                <span class="panel-sub">Ingresos por {% if rango == 'dia' %}hora{% else %}día{% endif %} · pasa el dedo para ver el detalle</span>
             </header>
             <div class="grafico" id="g-serie" data-tipo="columnas"></div>
         </section>
 
         <section class="panel panel-ancho">
             <header class="panel-head">
-                <h2>Mas vendidos</h2>
+                <h2>Más vendidos</h2>
                 <span class="panel-sub">Unidades por producto</span>
             </header>
             <div class="grafico" id="g-top" data-tipo="barras"></div>
         </section>
+    </div>
+    </div>
 
-                </div>
-            </section>
+    {# ==================== VENTAS ==================== #}
+    <div data-grupo="ventas" hidden>
+        <div class="subtabs">
+            <button type="button" data-sub-btn="vendido" class="activo">Qué se vendió</button>
+            <button type="button" data-sub-btn="ordenes">Órdenes</button>
+        </div>
 
-            <section class="seccion" id="sec-vendido" hidden>
-                <div class="dash-grid">
+        <div class="contenido" data-sub="vendido">
         <section class="panel panel-ancho">
             <header class="panel-head">
                 <h2>Qué se vendió</h2>
@@ -124,12 +116,50 @@
             <p class="vacio">Sin ventas en este período.</p>
             {% endif %}
         </section>
+        </div>
 
-                </div>
-            </section>
+        <div class="contenido" data-sub="ordenes" hidden>
+        <section class="panel panel-ancho">
+            <header class="panel-head">
+                <h2>Todas las órdenes del período</h2>
+                <span class="panel-sub">{{ todas|length }} orden{{ todas|length|pluralize:"es" }} · {{ etiqueta }}</span>
+            </header>
+            <div class="tabla-scroll tabla-alta">
+                <table class="tabla">
+                    <thead>
+                        <tr><th>#</th><th>Mesa</th><th>Fecha</th><th>Detalle</th><th class="num">Items</th><th class="num">Total</th></tr>
+                    </thead>
+                    <tbody>
+                        {% for o in todas %}
+                        <tr>
+                            <td class="mono">{{ o.id }}</td>
+                            <td class="mono">
+                                Mesa {{ o.mesa.numero }}
+                                {% if o.es_venta_directa %}<span class="chip chip-cambio"> directa</span>{% endif %}
+                                {% if o.para_llevar %}<span class="chip chip-cambio"> llevar</span>{% endif %}
+                            </td>
+                            <td class="mono">{{ o.creado|date:"d/m H:i" }}</td>
+                            <td class="detalle">{% for it in o.items.all %}{{ it.cantidad }}x {{ it.descripcion }}{% if not forloop.last %} · {% endif %}{% endfor %}</td>
+                            <td class="num">{% with n=o.items.all %}{{ n|length }}{% endwith %}</td>
+                            <td class="num"><strong>{{ o.total|dinero }}</strong></td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="6" class="vacio">Sin órdenes en este período.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                    {% if todas %}
+                    <tfoot>
+                        <tr><td colspan="5" class="num"><strong>Total del período</strong></td><td class="num"><strong>{{ kpi.ingresos|dinero }}</strong></td></tr>
+                    </tfoot>
+                    {% endif %}
+                </table>
+            </div>
+        </section>
+        </div>
+    </div>
 
-            <section class="seccion" id="sec-bebidas" hidden>
-                <div class="dash-grid">
+    {# ==================== INVENTARIO ==================== #}
+    <div data-grupo="inventario" hidden class="contenido">
         <section class="panel panel-ancho">
             <header class="panel-head panel-head-fila">
                 <div>
@@ -188,53 +218,19 @@
                 </div>
             </form>
         </section>
+    </div>
 
-                </div>
-            </section>
+    {# ==================== GASTOS ==================== #}
+    <div data-grupo="gastos" hidden>
+        <div class="subtabs">
+            <button type="button" data-sub-btn="g-resumen" class="activo">Resumen</button>
+            <button type="button" data-sub-btn="g-diarios">Diarios</button>
+            <button type="button" data-sub-btn="g-fijos">Fijos</button>
+            <button type="button" data-sub-btn="g-margen">Margen</button>
+        </div>
 
-            <section class="seccion" id="sec-ordenes" hidden>
-                <div class="dash-grid">
-        <section class="panel panel-ancho">
-            <header class="panel-head">
-                <h2>Todas las órdenes del período</h2>
-                <span class="panel-sub">{{ todas|length }} orden{{ todas|length|pluralize:"es" }} · {{ etiqueta }}</span>
-            </header>
-            <div class="tabla-scroll tabla-alta">
-                <table class="tabla">
-                    <thead>
-                        <tr><th>#</th><th>Mesa</th><th>Fecha</th><th>Detalle</th><th class="num">Items</th><th class="num">Total</th></tr>
-                    </thead>
-                    <tbody>
-                        {% for o in todas %}
-                        <tr>
-                            <td class="mono">{{ o.id }}</td>
-                            <td class="mono">
-                                Mesa {{ o.mesa.numero }}
-                                {% if o.es_venta_directa %}<span class="chip chip-cambio"> directa</span>{% endif %}
-                                {% if o.para_llevar %}<span class="chip chip-cambio"> llevar</span>{% endif %}
-                            </td>
-                            <td class="mono">{{ o.creado|date:"d/m H:i" }}</td>
-                            <td class="detalle">{% for it in o.items.all %}{{ it.cantidad }}x {{ it.descripcion }}{% if not forloop.last %} · {% endif %}{% endfor %}</td>
-                            <td class="num">{% with n=o.items.all %}{{ n|length }}{% endwith %}</td>
-                            <td class="num"><strong>{{ o.total|dinero }}</strong></td>
-                        </tr>
-                        {% empty %}
-                        <tr><td colspan="6" class="vacio">Sin órdenes en este período.</td></tr>
-                        {% endfor %}
-                    </tbody>
-                    {% if todas %}
-                    <tfoot>
-                        <tr><td colspan="5" class="num"><strong>Total del período</strong></td><td class="num"><strong>{{ kpi.ingresos|dinero }}</strong></td></tr>
-                    </tfoot>
-                    {% endif %}
-                </table>
-            </div>
-        </section>
-                </div>
-            </section>
-
-            <section class="seccion" id="sec-gastos" hidden>
-                <div class="dash-grid">
+        {# ---- Resumen: mes en curso (fijo, no cambia con el filtro de arriba) ---- #}
+        <div class="contenido" data-sub="g-resumen">
         <section class="panel panel-ancho">
             <header class="panel-head">
                 <h2>Mes en curso · {{ mes_actual.etiqueta }}</h2>
@@ -272,15 +268,12 @@
             </div>
             {% endif %}
         </section>
-                </div>
 
-                <div class="dash-grid">
         <section class="panel panel-ancho">
             <header class="panel-head">
                 <h2>Período seleccionado · {{ etiqueta }}</h2>
-                <span class="panel-sub">Solo insumos variables (pollo, papa, vegetales, aceite, condimentos, bebidas...). Los gastos fijos (alquiler, sueldos, luz...) se cargan y se ven en la pestaña "Gastos fijos".</span>
+                <span class="panel-sub">Solo insumos variables (pollo, papa, vegetales, aceite, condimentos, bebidas...). Los gastos fijos (alquiler, sueldos, luz...) están en la sub-pestaña "Fijos".</span>
             </header>
-
             <div class="kpis">
                 <div class="kpi kpi-hero">
                     <p class="kpi-label">Ingresos</p>
@@ -296,6 +289,16 @@
                     {% if financiero_variable.margen is not None %}<p class="kpi-delta {% if financiero_variable.margen < 0 %}baja{% else %}sube{% endif %}">{{ financiero_variable.margen }}% de margen</p>{% endif %}
                 </div>
             </div>
+        </section>
+        </div>
+
+        {# ---- Diarios: gastos variables del período seleccionado ---- #}
+        <div class="contenido" data-sub="g-diarios" hidden>
+        <section class="panel panel-ancho">
+            <header class="panel-head">
+                <h2>Gastos del período</h2>
+                <span class="panel-sub">{{ etiqueta }} · pollo, papa, vegetales, aceite, condimentos, bebidas...</span>
+            </header>
 
             {% if plantillas_gasto %}
             <div class="plantillas-gasto">
@@ -318,7 +321,7 @@
                     <input type="date" name="fecha" value="{{ ancla|date:'Y-m-d' }}" required>
                 </label>
                 <label class="campo-gasto">
-                    <span class="campo-gasto-label">Categoria</span>
+                    <span class="campo-gasto-label">Categoría</span>
                     <select name="categoria">
                         {% for valor, nombre in categorias_gasto %}
                         <option value="{{ valor }}">{{ nombre }}</option>
@@ -326,7 +329,7 @@
                     </select>
                 </label>
                 <label class="campo-gasto campo-gasto-ancho">
-                    <span class="campo-gasto-label">Descripcion</span>
+                    <span class="campo-gasto-label">Descripción</span>
                     <input type="text" name="descripcion" placeholder="Ej: 20 pollos, 15 kg de papa" required maxlength="200">
                 </label>
                 <label class="campo-gasto">
@@ -338,20 +341,11 @@
                 </label>
                 <button type="submit" class="btn-guardar">Agregar gasto</button>
             </form>
-            <script>
-                function llenarGasto(boton) {
-                    const form = document.getElementById('form-gasto');
-                    form.categoria.value = boton.dataset.categoria;
-                    form.descripcion.value = boton.dataset.descripcion;
-                    form.monto.value = boton.dataset.monto;
-                    form.monto.focus();
-                }
-            </script>
 
             <div class="tabla-scroll">
                 <table class="tabla">
                     <thead>
-                        <tr><th>Fecha</th><th>Categoria</th><th>Descripcion</th><th class="num">Monto</th><th></th></tr>
+                        <tr><th>Fecha</th><th>Categoría</th><th>Descripción</th><th class="num">Monto</th><th></th></tr>
                     </thead>
                     <tbody>
                         {% for g in financiero_variable.gastos %}
@@ -380,11 +374,10 @@
                 </table>
             </div>
         </section>
-                </div>
-            </section>
+        </div>
 
-            <section class="seccion" id="sec-fijos" hidden>
-                <div class="dash-grid">
+        {# ---- Fijos: gastos recurrentes mensuales ---- #}
+        <div class="contenido" data-sub="g-fijos" hidden>
         <section class="panel panel-ancho">
             <header class="panel-head">
                 <h2>Gastos fijos mensuales</h2>
@@ -414,8 +407,8 @@
                     </span>
                 </label>
                 <label class="campo-gasto">
-                    <span class="campo-gasto-label">Dia del mes</span>
-                    <input type="number" name="dia_mes" min="1" max="31" value="1" required style="width:70px;" title="Si el mes no llega a ese dia, se genera el ultimo dia de ese mes">
+                    <span class="campo-gasto-label">Día del mes</span>
+                    <input type="number" name="dia_mes" min="1" max="31" value="1" required title="Si el mes no llega a ese día, se genera el último día de ese mes">
                 </label>
                 <button type="submit" class="btn-guardar">Guardar gasto fijo</button>
             </form>
@@ -423,7 +416,7 @@
             <div class="tabla-scroll">
                 <table class="tabla">
                     <thead>
-                        <tr><th>Nombre</th><th class="num">Monto / mes</th><th class="num">Dia</th><th>Estado</th><th></th></tr>
+                        <tr><th>Nombre</th><th class="num">Monto / mes</th><th class="num">Día</th><th>Estado</th><th></th></tr>
                     </thead>
                     <tbody>
                         {% for r in gastos_recurrentes %}
@@ -441,7 +434,7 @@
                                 </form>
                             </td>
                             <td>
-                                <form method="post" action="{% url 'eliminar_gasto_recurrente' r.id %}" onsubmit="return confirm('¿Eliminar este gasto fijo? Ya no se va a generar mas.');">
+                                <form method="post" action="{% url 'eliminar_gasto_recurrente' r.id %}" onsubmit="return confirm('¿Eliminar este gasto fijo? Ya no se va a generar más.');">
                                     {% csrf_token %}
                                     <input type="hidden" name="volver" value="rango={{ rango }}&fecha={{ ancla|date:'Y-m-d' }}">
                                     <button type="submit" class="btn-eliminar-fila" aria-label="Eliminar gasto fijo">✕</button>
@@ -455,11 +448,10 @@
                 </table>
             </div>
         </section>
-                </div>
-            </section>
+        </div>
 
-            <section class="seccion" id="sec-margenes" hidden>
-                <div class="dash-grid">
+        {# ---- Margen: comida vs bebidas ---- #}
+        <div class="contenido" data-sub="g-margen" hidden>
         <section class="panel panel-ancho">
             <header class="panel-head">
                 <h2>Ingresos por grupo de {{ etiqueta }}</h2>
@@ -471,7 +463,7 @@
         <section class="panel panel-ancho">
             <header class="panel-head">
                 <h2>Margen por grupo de {{ etiqueta }}</h2>
-                <span class="panel-sub">Separa comida de bebidas para ver cual de los dos deja mas ganancia. El costo de bebidas y gaseosas se calcula solo con el precio de compra cargado en la pestaña "Bebidas".</span>
+                <span class="panel-sub">Separa comida de bebidas para ver cuál de los dos deja más ganancia. El costo de bebidas y gaseosas se calcula solo con el precio de compra cargado en "Inventario".</span>
             </header>
             <div class="tabla-scroll">
                 <table class="tabla">
@@ -501,11 +493,24 @@
                 </table>
             </div>
         </section>
-                </div>
-            </section>
-
         </div>
     </div>
+
+    <dialog id="menu-mas" class="hoja">
+        <div class="agarradera"></div>
+        <a href="{% url 'exportar_excel' %}?rango={{ rango }}&fecha={{ ancla|date:'Y-m-d' }}">Exportar Excel</a>
+        <a href="/admin/" data-nav="normal">Productos y usuarios</a>
+        <a href="{% url 'logout' %}">Salir</a>
+        <button type="button" class="cerrar" data-cerrar>Cerrar</button>
+    </dialog>
+
+    <nav class="bnav" aria-label="Secciones del panel">
+        <button type="button" data-ir="resumen" class="activo"><span class="pill">{% include "pedidos/icons/resumen.svg" %}</span>Resumen</button>
+        <button type="button" data-ir="ventas"><span class="pill">{% include "pedidos/icons/ventas.svg" %}</span>Ventas</button>
+        <button type="button" data-ir="inventario"><span class="pill">{% include "pedidos/icons/inventario.svg" %}</span>Inventario</button>
+        <button type="button" data-ir="gastos"><span class="pill">{% include "pedidos/icons/gastos.svg" %}</span>Gastos</button>
+        <button type="button" data-abrir="menu-mas"><span class="pill">{% include "pedidos/icons/mas.svg" %}</span>Más</button>
+    </nav>
 
     <div class="tooltip" id="tooltip" hidden role="status"></div>
 </div>
@@ -625,28 +630,22 @@ function dibujar() {
 function dibujarMargenes() {
     barras(document.getElementById('g-margen-ingresos'), DATOS.margenes, 'nombre', 'ingresos', dinero, null, null, 'ingresos');
 }
-// Secciones del menu lateral: se recuerda la ultima abierta (hash o localStorage)
-(() => {
-    const items = document.querySelectorAll('.menu-item[data-seccion]');
-    const mostrar = nombre => {
-        if (!document.getElementById('sec-' + nombre)) nombre = 'resumen';
-        document.querySelectorAll('.seccion').forEach(s => s.hidden = s.id !== 'sec-' + nombre);
-        items.forEach(i => i.classList.toggle('activo', i.dataset.seccion === nombre));
-        try { localStorage.setItem('dash-seccion', nombre); } catch (e) {}
-        if (nombre === 'resumen') dibujar();   // los graficos necesitan ancho real para dibujarse
-        if (nombre === 'margenes') dibujarMargenes();
-    };
-    items.forEach(i => i.addEventListener('click', e => { e.preventDefault(); history.replaceState({}, '', '#' + i.dataset.seccion); mostrar(i.dataset.seccion); }));
-    let inicial = location.hash.slice(1);
-    if (!inicial) { try { inicial = localStorage.getItem('dash-seccion') || 'resumen'; } catch (e) { inicial = 'resumen'; } }
-    mostrar(inicial);
-    // al cambiar de período, seguir en la misma seccion
-    document.querySelectorAll('.dash-filtros a:not(.btn-exportar)').forEach(a => a.addEventListener('click', () => {
-        const activa = document.querySelector('.menu-item.activo');
-        if (activa) a.href = a.href.split('#')[0] + '#' + activa.dataset.seccion;
-    }));
-})();
+
+// admin_movil.js llama esto cada vez que se muestra un grupo/sub-pestana: los graficos
+// SVG necesitan medir su contenedor ya visible para dibujarse con el ancho correcto.
+window.onPanelMovilNav = (grupo, sub) => {
+    if (grupo === 'resumen') dibujar();
+    if (grupo === 'gastos' && sub === 'g-margen') dibujarMargenes();
+};
 let t; window.addEventListener('resize', () => { clearTimeout(t); t = setTimeout(() => { dibujar(); dibujarMargenes(); }, 150); });
+
+function llenarGasto(boton) {
+    const form = document.getElementById('form-gasto');
+    form.categoria.value = boton.dataset.categoria;
+    form.descripcion.value = boton.dataset.descripcion;
+    form.monto.value = boton.dataset.monto;
+    form.monto.focus();
+}
 
 // Inventario: el switch habilita el campo de stock de esa fila
 document.querySelectorAll('.inv-switch input').forEach(chk => {
@@ -658,4 +657,5 @@ document.querySelectorAll('.inv-switch input').forEach(chk => {
     });
 });
 </script>
+<script src="{% static 'pedidos/admin_movil.js' %}?v={{ admin_movil_js_version }}"></script>
 {% endblock %}
