@@ -1202,6 +1202,8 @@ def reportes(request):
         },
         "titulo_serie": titulo_serie,
         "datos": {"serie": serie, "top": top_productos, "margenes": margen_grupos},
+        "top_productos": top_productos,
+        "top_max": top_productos[0]["cantidad"] if top_productos else 0,
         "desglose": desglose,
         "inventario": inventario,
         "todas": todas,

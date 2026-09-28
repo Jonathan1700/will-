@@ -339,6 +339,25 @@
 
 .panel-admin-movil #menu-mas button.cerrar { color: var(--ink-soft); border-bottom: none; margin-top: 4px; }
 
+/* ---------- Mas vendidos: ranking sin SVG, nombres largos envuelven a 2 lineas ---------- */
+.panel-admin-movil .rank { display: flex; flex-direction: column; gap: 12px; }
+
+.panel-admin-movil .rank-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 12px;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.panel-admin-movil .rank-item span { flex: 1; min-width: 0; white-space: normal; line-height: 1.3; }
+.panel-admin-movil .rank-item b { flex-shrink: 0; color: var(--navy); font-variant-numeric: tabular-nums; }
+
+.panel-admin-movil .rank-track { height: 8px; border-radius: 4px; background: var(--viz-grid, #ECE7DB); margin-top: 5px; overflow: hidden; }
+.panel-admin-movil .rank-track div { height: 100%; border-radius: 4px; background: var(--viz-1, #34558B); }
+.panel-admin-movil .rank-track.top div { background: var(--mustard); }
+
 /* ---------- Ordenes como tarjetas ---------- */
 .panel-admin-movil .orden-tarjeta {
     background: #FFFFFF;

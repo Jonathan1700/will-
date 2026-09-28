@@ -1885,10 +1885,13 @@ a.btn-enviar-link {
 /* ---- indicadores ---- */
 .kpis {
     display: grid;
-    grid-template-columns: 1.4fr repeat(3, 1fr);
+    grid-template-columns: 1.4fr repeat(2, 1fr);
     gap: 14px;
     margin-bottom: 18px;
 }
+
+/* fila de KPIs sin hero (Resumen: Ordenes/Ticket/Productos), 3 columnas iguales */
+.kpis-fila { grid-template-columns: repeat(3, 1fr); }
 
 .kpi {
     background: #FFFFFF;
@@ -1898,7 +1901,7 @@ a.btn-enviar-link {
     min-width: 0;
 }
 
-.kpi-hero { background: var(--navy); border-color: var(--navy); }
+.kpi-hero { background: var(--navy); border-color: var(--navy); margin-bottom: 14px; }
 .kpi-hero .kpi-label { color: rgba(245, 239, 226, .75); }
 .kpi-hero .kpi-valor { color: var(--cream); font-size: 40px; }
 .kpi-hero .kpi-delta.neutro { color: rgba(245, 239, 226, .6); }
@@ -2208,8 +2211,6 @@ a.btn-enviar-link {
 }
 
 @media (max-width: 900px) {
-    .kpis { grid-template-columns: repeat(2, 1fr); }
-    .kpi-hero { grid-column: 1 / -1; }
     .dash-grid { grid-template-columns: 1fr; }
 }
 
@@ -2223,7 +2224,6 @@ a.btn-enviar-link {
 
     .dash { padding: 14px 14px 40px; }
 
-    .kpis { grid-template-columns: 1fr; }
     .kpi-hero .kpi-valor { font-size: 32px; }
 
     .panel { padding: 14px 14px 12px; }

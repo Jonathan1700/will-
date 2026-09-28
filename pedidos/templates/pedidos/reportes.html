@@ -41,26 +41,24 @@
 
     {# ==================== RESUMEN ==================== #}
     <div data-grupo="resumen">
-    <div class="kpis">
-        <div class="kpi kpi-hero">
-            <p class="kpi-label">Ingresos</p>
-            <p class="kpi-valor">{{ kpi.ingresos|dinero }}</p>
-            {% include "pedidos/_delta.html" with d=deltas.ingresos %}
-        </div>
+    <div class="kpi kpi-hero">
+        <p class="kpi-label">Ingresos</p>
+        <p class="kpi-valor">{{ kpi.ingresos|dinero }}</p>
+        {% include "pedidos/_delta.html" with d=deltas.ingresos %}
+    </div>
+
+    <div class="kpis kpis-fila">
         <div class="kpi">
             <p class="kpi-label">Órdenes</p>
             <p class="kpi-valor">{{ kpi.ordenes }}</p>
-            {% include "pedidos/_delta.html" with d=deltas.ordenes %}
         </div>
         <div class="kpi">
-            <p class="kpi-label">Ticket promedio</p>
+            <p class="kpi-label">Ticket prom.</p>
             <p class="kpi-valor">{{ kpi.ticket|dinero }}</p>
-            {% include "pedidos/_delta.html" with d=deltas.ticket %}
         </div>
         <div class="kpi">
-            <p class="kpi-label">Productos vendidos</p>
+            <p class="kpi-label">Productos</p>
             <p class="kpi-valor">{{ kpi.items }}</p>
-            {% include "pedidos/_delta.html" with d=deltas.items %}
         </div>
     </div>
 
@@ -78,7 +76,18 @@
                 <h2>Más vendidos</h2>
                 <span class="panel-sub">Unidades por producto</span>
             </header>
-            <div class="grafico" id="g-top" data-tipo="barras"></div>
+            {% if top_productos %}
+            <div class="rank">
+                {% for p in top_productos|slice:":5" %}
+                <div class="rank-fila">
+                    <div class="rank-item"><span>{{ p.nombre }}</span><b>{{ p.cantidad }}</b></div>
+                    <div class="rank-track {% if forloop.first %}top{% endif %}"><div style="width: {% widthratio p.cantidad top_max 100 %}%"></div></div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p class="vacio">Sin ventas en este período.</p>
+            {% endif %}
         </section>
     </div>
     </div>
@@ -613,7 +622,6 @@ function barras(cont, filas, campoNombre, campoValor, fmt, campoExtra, fmtExtra,
 
 function dibujar() {
     columnas(document.getElementById('g-serie'), DATOS.serie);
-    barras(document.getElementById('g-top'), DATOS.top, 'nombre', 'cantidad', v => v + ' uds', 'ingresos', dinero);
 }
 
 function dibujarMargenes() {
