@@ -66,7 +66,6 @@
         <section class="panel panel-ancho">
             <header class="panel-head">
                 <h2>{{ titulo_serie }}</h2>
-                <span class="panel-sub">Ingresos por {% if rango == 'dia' %}hora{% else %}día{% endif %} · pasa el dedo para ver el detalle</span>
             </header>
             <div class="grafico" id="g-serie" data-tipo="columnas"></div>
         </section>
@@ -74,7 +73,6 @@
         <section class="panel panel-ancho">
             <header class="panel-head">
                 <h2>Más vendidos</h2>
-                <span class="panel-sub">Unidades por producto</span>
             </header>
             {% if top_productos %}
             <div class="rank">
@@ -103,7 +101,6 @@
         <section class="panel panel-ancho">
             <header class="panel-head">
                 <h2>Qué se vendió</h2>
-                <span class="panel-sub">Unidades por producto, agrupadas por categoría. Los cambios de acompañamiento se cuentan aparte.</span>
             </header>
             {% if desglose %}
             <div class="cats">
@@ -161,10 +158,7 @@
     <div data-grupo="inventario" hidden class="contenido">
         <section class="panel panel-ancho">
             <header class="panel-head panel-head-fila">
-                <div>
-                    <h2>Inventario de bebidas y gaseosas</h2>
-                    <span class="panel-sub">Activa "Llevar conteo" en las que vienen en botella o lata, escribe las unidades y guarda. Se descuentan solas con cada orden; en 0 el mesero las ve agotadas. Las que se preparan (jugos) van sin conteo. El precio de compra es lo que a ti te cuesta cada una: se usa para calcular el margen real de bebidas.</span>
-                </div>
+                <h2>Inventario de bebidas y gaseosas</h2>
                 {% if request.GET.guardado %}<span class="aviso-ok">✓ Inventario guardado</span>{% endif %}
             </header>
             <form method="post" action="{% url 'actualizar_stock' %}" class="inv-form">
@@ -222,7 +216,6 @@
         <section class="panel panel-ancho">
             <header class="panel-head">
                 <h2>Mes en curso · {{ mes_actual.etiqueta }}</h2>
-                <span class="panel-sub">Fijo: siempre el mes completo hasta hoy, sin importar el período elegido arriba. Úselo de base para los sueldos.</span>
             </header>
             <div class="kpis">
                 <div class="kpi kpi-hero">
@@ -254,7 +247,6 @@
         <section class="panel panel-ancho">
             <header class="panel-head">
                 <h2>Período seleccionado · {{ etiqueta }}</h2>
-                <span class="panel-sub">Solo insumos variables (pollo, papa, vegetales, aceite, condimentos, bebidas...). Los gastos fijos (alquiler, sueldos, luz...) están en la sub-pestaña "Fijos".</span>
             </header>
             <div class="kpis">
                 <div class="kpi kpi-hero">
@@ -279,7 +271,7 @@
         <section class="panel panel-ancho">
             <header class="panel-head">
                 <h2>Gastos del período</h2>
-                <span class="panel-sub">{{ etiqueta }} · pollo, papa, vegetales, aceite, condimentos, bebidas...</span>
+                <span class="panel-sub">{{ etiqueta }}</span>
             </header>
 
             <div class="tabla-scroll">
@@ -321,7 +313,6 @@
         <section class="panel panel-ancho">
             <header class="panel-head">
                 <h2>Gastos fijos mensuales</h2>
-                <span class="panel-sub">Alquiler, sueldos, luz, agua, internet... Se cargan una sola vez y el dashboard genera el gasto de cada mes solo, sin volver a escribirlo. Si vuelves a cargar un tipo ya existente (ej: cambio el monto de la luz), se actualiza en vez de duplicarse.</span>
             </header>
 
             <form method="post" action="{% url 'agregar_gasto_recurrente' %}" class="gasto-form" id="form-gasto-fijo">
@@ -395,7 +386,6 @@
         <section class="panel panel-ancho">
             <header class="panel-head">
                 <h2>Ingresos por grupo de {{ etiqueta }}</h2>
-                <span class="panel-sub">Comida (pollo, combos, acompañamientos) vs. bebidas y gaseosas</span>
             </header>
             <div class="grafico" id="g-margen-ingresos" data-tipo="barras"></div>
         </section>
@@ -403,7 +393,6 @@
         <section class="panel panel-ancho">
             <header class="panel-head">
                 <h2>Margen por grupo de {{ etiqueta }}</h2>
-                <span class="panel-sub">Separa comida de bebidas para ver cuál de los dos deja más ganancia. El costo de bebidas y gaseosas se calcula solo con el precio de compra cargado en "Inventario".</span>
             </header>
             <div class="tabla-scroll">
                 <table class="tabla">
