@@ -1,0 +1,15 @@
+{# Barra inferior + menú "Más" #}
+<nav class="bnav" aria-label="Secciones del panel">
+  <button type="button" data-ir="resumen" class="activo"><span class="pill">{% include "icons/resumen.svg" %}</span>Resumen</button>
+  <button type="button" data-ir="ventas"><span class="pill">{% include "icons/ventas.svg" %}</span>Ventas</button>
+  <button type="button" data-ir="inventario"><span class="pill">{% include "icons/inventario.svg" %}</span>Inventario</button>
+  <button type="button" data-ir="gastos"><span class="pill">{% include "icons/gastos.svg" %}</span>Gastos</button>
+  <button type="button" data-abrir="menu-mas"><span class="pill">{% include "icons/mas.svg" %}</span>Más</button>
+</nav>
+
+<dialog id="menu-mas" class="hoja">
+  {# ADAPTAR: URLs reales (logout, exportar, y cualquier sección extra como "Registro de acciones") #}
+  <a href="{% url 'exportar_excel' %}?rango={{ rango }}&fecha={{ fecha|date:'Y-m-d' }}">Exportar Excel</a>
+  <a href="{% url 'logout' %}">Salir</a>
+  <button type="button" class="cerrar" data-cerrar>Cerrar</button>
+</dialog>

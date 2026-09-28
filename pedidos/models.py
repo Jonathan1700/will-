@@ -268,8 +268,10 @@ class Orden(models.Model):
     @property
     def para_llevar(self):
         """Si alguna cuenta de esta orden es para llevar (para reportes, donde se ve la
-        orden completa). El detalle real esta por cuenta en EstadoCuentaOrden.para_llevar."""
-        return self.cuentas_estado.filter(para_llevar=True).exists()
+        orden completa). El detalle real esta por cuenta en EstadoCuentaOrden.para_llevar.
+        Usa .all() (no .filter()) para poder resolverse desde cuentas_estado ya
+        precargada con prefetch_related y no disparar una consulta por orden en listados."""
+        return any(e.para_llevar for e in self.cuentas_estado.all())
 
     def total(self):
         return sum(item.subtotal() for item in self.items.all()) + self.recargo_llevar()

@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Inventario de bebidas</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Work+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:'Work Sans',sans-serif;background:#F5EEE2}
+button,input{font-family:inherit}
+button{cursor:pointer}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; display: flex; flex-direction: column; background: #F5EEE2; overflow: hidden; font-family: 'Work Sans', sans-serif; color: #1A1A1A">
+
+<header style="height: 56px; flex-shrink: 0; background: #1B2A4E; display: flex; align-items: center; justify-content: space-between; padding: 0 8px 0 16px">
+<div style="display: flex; align-items: center; gap: 10px">
+<div style="font-family: 'Anton', sans-serif; font-size: 26px; letter-spacing: 0.5px; color: #F5EEE2">BRASAS</div>
+<span style="background: #F2A63B; color: #1B2A4E; font-size: 11px; font-weight: 700; letter-spacing: 0.8px; padding: 4px 8px; border-radius: 6px">ADMIN</span>
+</div>
+<button type="button" aria-label="Exportar a Excel" style="width: 44px; height: 44px; border: 0; background: transparent; color: #F5EEE2; display: flex; align-items: center; justify-content: center">
+<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"></path><path d="M7 11l5 5 5-5"></path><path d="M4 20h16"></path></svg>
+</button>
+</header>
+
+<div style="flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; padding: 12px 8px 4px 16px">
+<div>
+<div style="font-size: 20px; font-weight: 700; color: #1B2A4E">Inventario de bebidas</div>
+<div style="font-size: 13px; color: #5F5747">Vendidas hoy · Sáb 26/09</div>
+</div>
+<button type="button" aria-label="Cómo funciona el conteo" style="width: 44px; height: 44px; border: 0; background: transparent; color: #1B2A4E; display: flex; align-items: center; justify-content: center">
+<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 11v5"></path><circle cx="12" cy="8" r="0.6"></circle></svg>
+</button>
+</div>
+
+<div style="flex: 1; min-height: 0; overflow: hidden; padding: 4px 16px 12px; display: flex; flex-direction: column; gap: 8px">
+
+<div style="font-size: 12px; font-weight: 700; letter-spacing: 1px; color: #1B2A4E; padding-top: 4px">BEBIDAS</div>
+
+<div style="background: #FFFFFF; border: 1px solid #E6DCCB; border-radius: 16px; padding: 10px 14px; display: flex; align-items: center; gap: 12px; min-height: 64px">
+<div style="flex-grow: 1">
+<div style="font-size: 16px; font-weight: 600">Agua de coco</div>
+<div style="font-size: 13px; color: #5F5747">Vendidas: 0</div>
+</div>
+<div style="display: flex; align-items: center; gap: 10px">
+<span style="font-size: 12px; font-weight: 500; color: #5F5747">Llevar conteo</span>
+<button type="button" role="switch" aria-checked="false" aria-label="Llevar conteo de Agua de coco" style="width: 52px; height: 32px; border: 0; border-radius: 16px; background: #8A8068; padding: 4px; display: flex; align-items: center; justify-content: flex-start"><span style="width: 24px; height: 24px; border-radius: 12px; background: #FFFFFF; display: block"></span></button>
+</div>
+</div>
+
+<div style="background: #FFFFFF; border: 1px solid #E6DCCB; border-radius: 16px; padding: 10px 14px; display: flex; align-items: center; gap: 12px; min-height: 64px">
+<div style="flex-grow: 1">
+<div style="font-size: 16px; font-weight: 600">Chicha morada</div>
+<div style="font-size: 13px; color: #5F5747">Vendidas: 1</div>
+</div>
+<div style="display: flex; align-items: center; gap: 10px">
+<span style="font-size: 12px; font-weight: 500; color: #5F5747">Llevar conteo</span>
+<button type="button" role="switch" aria-checked="false" aria-label="Llevar conteo de Chicha morada" style="width: 52px; height: 32px; border: 0; border-radius: 16px; background: #8A8068; padding: 4px; display: flex; align-items: center; justify-content: flex-start"><span style="width: 24px; height: 24px; border-radius: 12px; background: #FFFFFF; display: block"></span></button>
+</div>
+</div>
+
+<div style="background: #FFFFFF; border: 1px solid #E6DCCB; border-radius: 16px; padding: 10px 14px; display: flex; align-items: center; gap: 12px; min-height: 64px">
+<div style="flex-grow: 1">
+<div style="font-size: 16px; font-weight: 600">Jugo de naranja</div>
+<div style="font-size: 13px; color: #5F5747">Vendidas: 3</div>
+</div>
+<div style="display: flex; align-items: center; gap: 10px">
+<span style="font-size: 12px; font-weight: 500; color: #5F5747">Llevar conteo</span>
+<button type="button" role="switch" aria-checked="false" aria-label="Llevar conteo de Jugo de naranja" style="width: 52px; height: 32px; border: 0; border-radius: 16px; background: #8A8068; padding: 4px; display: flex; align-items: center; justify-content: flex-start"><span style="width: 24px; height: 24px; border-radius: 12px; background: #FFFFFF; display: block"></span></button>
+</div>
+</div>
+
+<div style="font-size: 12px; font-weight: 700; letter-spacing: 1px; color: #1B2A4E; padding-top: 8px">GASEOSAS</div>
+
+<div style="background: #FFFFFF; border: 1px solid #1B2A4E; border-radius: 16px; padding: 10px 14px 14px; display: flex; flex-direction: column; gap: 12px">
+<div style="display: flex; align-items: center; gap: 12px; min-height: 48px">
+<div style="flex-grow: 1">
+<div style="font-size: 16px; font-weight: 600">Coca-Cola 2L</div>
+<div style="font-size: 13px; color: #5F5747">De 2 litros · Vendidas: 1</div>
+</div>
+<div style="display: flex; align-items: center; gap: 10px">
+<span style="font-size: 12px; font-weight: 500; color: #5F5747">Llevar conteo</span>
+<button type="button" role="switch" aria-checked="true" aria-label="Llevar conteo de Coca-Cola 2L" style="width: 52px; height: 32px; border: 0; border-radius: 16px; background: #1B2A4E; padding: 4px; display: flex; align-items: center; justify-content: flex-end"><span style="width: 24px; height: 24px; border-radius: 12px; background: #F2A63B; display: block"></span></button>
+</div>
+</div>
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px">
+<div>
+<label for="stock-coca2l" style="display: block; font-size: 12px; font-weight: 600; color: #5F5747; margin-bottom: 4px">Unidades en stock</label>
+<input id="stock-coca2l" type="text" inputmode="numeric" placeholder="0" style="width: 100%; height: 48px; border: 1px solid #CFC3AC; border-radius: 12px; padding: 0 14px; font-size: 16px; background: #FFFFFF; color: #1A1A1A">
+</div>
+<div>
+<label for="costo-coca2l" style="display: block; font-size: 12px; font-weight: 600; color: #5F5747; margin-bottom: 4px">Precio de compra</label>
+<input id="costo-coca2l" type="text" inputmode="decimal" placeholder="$ 0.00" style="width: 100%; height: 48px; border: 1px solid #CFC3AC; border-radius: 12px; padding: 0 14px; font-size: 16px; background: #FFFFFF; color: #1A1A1A">
+</div>
+</div>
+</div>
+
+<div style="background: #FFFFFF; border: 1px solid #E6DCCB; border-radius: 16px; padding: 10px 14px; display: flex; align-items: center; gap: 12px; min-height: 64px">
+<div style="flex-grow: 1">
+<div style="font-size: 16px; font-weight: 600">Fanta</div>
+<div style="font-size: 13px; color: #5F5747">Personal · Vendidas: 1</div>
+</div>
+<div style="display: flex; align-items: center; gap: 10px">
+<span style="font-size: 12px; font-weight: 500; color: #5F5747">Llevar conteo</span>
+<button type="button" role="switch" aria-checked="false" aria-label="Llevar conteo de Fanta" style="width: 52px; height: 32px; border: 0; border-radius: 16px; background: #8A8068; padding: 4px; display: flex; align-items: center; justify-content: flex-start"><span style="width: 24px; height: 24px; border-radius: 12px; background: #FFFFFF; display: block"></span></button>
+</div>
+</div>
+
+</div>
+
+<div style="flex-shrink: 0; padding: 10px 16px; background: #F5EEE2; border-top: 1px solid #E6DCCB">
+<button type="button" style="width: 100%; height: 52px; border: 0; border-radius: 14px; background: #F2A63B; color: #1B2A4E; font-size: 15px; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase">Guardar inventario</button>
+</div>
+
+<nav aria-label="Secciones del panel" style="flex-shrink: 0; display: flex; background: #FFFFFF; border-top: 1px solid #E6DCCB; padding: 4px 4px 0">
+<a href="Main.dc.html" style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 6px 0 10px; text-decoration: none; color: #5F5747; font-size: 11px; font-weight: 500">
+<span style="display: flex; align-items: center; justify-content: center; width: 56px; height: 30px; border-radius: 15px; background: transparent"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="9" rx="1.5"></rect><rect x="14" y="3" width="7" height="5" rx="1.5"></rect><rect x="14" y="12" width="7" height="9" rx="1.5"></rect><rect x="3" y="16" width="7" height="5" rx="1.5"></rect></svg></span>Resumen</a>
+<a href="Ventas.dc.html" style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 6px 0 10px; text-decoration: none; color: #5F5747; font-size: 11px; font-weight: 500">
+<span style="display: flex; align-items: center; justify-content: center; width: 56px; height: 30px; border-radius: 15px; background: transparent"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"></path><path d="M9 8h6"></path><path d="M9 12h6"></path></svg></span>Ventas</a>
+<a href="Inventario.dc.html" style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 6px 0 10px; text-decoration: none; color: #1B2A4E; font-size: 11px; font-weight: 700">
+<span style="display: flex; align-items: center; justify-content: center; width: 56px; height: 30px; border-radius: 15px; background: #F2A63B"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7l9-4 9 4-9 4z"></path><path d="M3 7v10l9 4 9-4V7"></path><path d="M12 11v10"></path></svg></span>Inventario</a>
+<a href="Gastos.dc.html" style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 6px 0 10px; text-decoration: none; color: #5F5747; font-size: 11px; font-weight: 500">
+<span style="display: flex; align-items: center; justify-content: center; width: 56px; height: 30px; border-radius: 15px; background: transparent"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="6" width="18" height="13" rx="2"></rect><path d="M3 10h18"></path><circle cx="16" cy="14.5" r="1.2"></circle></svg></span>Gastos</a>
+<button type="button" style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 6px 0 10px; border: 0; background: transparent; color: #5F5747; font-size: 11px; font-weight: 500">
+<span style="display: flex; align-items: center; justify-content: center; width: 56px; height: 30px; border-radius: 15px; background: transparent"><svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.7"></circle><circle cx="12" cy="12" r="1.7"></circle><circle cx="19" cy="12" r="1.7"></circle></svg></span>Más</button>
+</nav>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>

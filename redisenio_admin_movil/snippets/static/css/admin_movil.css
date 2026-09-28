@@ -1,0 +1,176 @@
+/* ==========================================================
+   Panel admin móvil — Brasas
+   Copiar a: static/css/admin_movil.css y enlazar en la base del panel.
+   Fuentes (poner en <head>):
+   <link href="https://fonts.googleapis.com/css2?family=Anton&family=Work+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+   ========================================================== */
+:root{
+  --navy:#1B2A4E; --mostaza:#F2A63B; --crema:#F5EEE2;
+  --borde:#E6DCCB; --gris:#5F5747; --input:#CFC3AC;
+  --rojo:#B23A2A; --verde:#2B6236; --nav-h:64px;
+}
+*{box-sizing:border-box}
+body{
+  margin:0; background:var(--crema); color:#1A1A1A;
+  font-family:'Work Sans',system-ui,sans-serif;
+  padding-bottom:calc(var(--nav-h) + env(safe-area-inset-bottom));
+}
+button,input,select{font-family:inherit}
+button{cursor:pointer}
+[hidden]{display:none !important}
+
+/* ---------- Encabezado ---------- */
+.top{
+  height:56px; background:var(--navy); color:var(--crema);
+  display:flex; align-items:center; gap:10px; padding:0 8px 0 16px;
+  padding-top:env(safe-area-inset-top);
+}
+.top .logo{font-family:'Anton',sans-serif; font-size:26px; letter-spacing:.5px}
+.top .badge{background:var(--mostaza); color:var(--navy); font-size:11px; font-weight:700;
+  letter-spacing:.8px; padding:4px 8px; border-radius:6px}
+.top .icono{margin-left:auto; width:44px; height:44px; display:flex; align-items:center;
+  justify-content:center; color:var(--crema); text-decoration:none}
+
+/* ---------- Filtro Día/Semana/Mes + fecha ---------- */
+.filtro{position:sticky; top:0; z-index:10; background:var(--crema); padding:12px 16px 8px}
+.seg{display:flex; gap:4px; background:#fff; border:1px solid var(--borde); border-radius:14px; padding:4px}
+.seg a{flex:1; height:40px; display:flex; align-items:center; justify-content:center;
+  border-radius:10px; font-weight:600; color:var(--gris); text-decoration:none}
+.seg a.on{background:var(--navy); color:var(--crema)}
+.fecha{display:flex; align-items:center; gap:4px; margin-top:8px}
+.fecha span{flex:1; text-align:center; font-weight:600; color:var(--navy)}
+.fecha a{min-width:44px; height:44px; display:flex; align-items:center; justify-content:center;
+  color:var(--navy); text-decoration:none; font-size:22px}
+.fecha .hoy{padding:0 16px; border-radius:22px; background:#EADFCB; font-size:14px; font-weight:600}
+body[data-grupo="inventario"] .filtro{display:none}
+
+/* ---------- Contenido ---------- */
+.contenido{padding:4px 16px 12px; display:flex; flex-direction:column; gap:10px}
+.titulo-sec{margin:6px 0 0; font-size:13px; font-weight:700; letter-spacing:.8px; color:var(--navy)}
+
+/* ---------- Sub-pestañas dentro de un grupo ---------- */
+.subtabs{display:flex; gap:4px; border-bottom:2px solid var(--borde); margin:0 16px}
+.subtabs button{flex:1; min-height:44px; border:0; background:none; font-size:15px; font-weight:600;
+  color:var(--gris); border-bottom:3px solid transparent; margin-bottom:-2px}
+.subtabs button.activo{color:var(--navy); font-weight:700; border-bottom-color:var(--mostaza)}
+
+/* ---------- KPIs ---------- */
+.kpi{background:#fff; border:1px solid var(--borde); border-radius:16px; padding:14px 16px}
+.kpi small{display:block; font-size:13px; font-weight:500; color:var(--gris)}
+.kpi b{display:block; font-size:26px; color:var(--navy); margin-top:4px}
+.kpi.oscuro{background:var(--navy); border-color:var(--navy)}
+.kpi.oscuro small{color:#D9D2C3}
+.kpi.oscuro b{color:var(--crema)}
+.kpi.grande b{font-family:'Anton',sans-serif; font-size:44px; font-weight:400; letter-spacing:.5px}
+.kpi p{margin:10px 0 0; font-size:13px; line-height:1.45}
+.kpi .peq{font-size:12px; color:var(--gris); margin-top:4px}
+.par{display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px}
+.kpis{display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px}
+.kpis .kpi{padding:12px}
+.kpis .kpi small{font-size:12px}
+.kpis .kpi b{font-size:26px}
+.neg{color:var(--rojo) !important}
+.pos{color:var(--verde) !important}
+
+/* ---------- Aviso ---------- */
+.aviso{background:#FFF1D6; border:1px solid #E8C27A; border-radius:14px; padding:12px 14px;
+  font-size:13px; line-height:1.45; color:#4A3200}
+
+/* ---------- Barra de cobertura ---------- */
+.barra{height:10px; border-radius:5px; background:#EFE7D8; margin-top:12px}
+.barra div{height:10px; min-width:8px; border-radius:5px; background:var(--mostaza)}
+
+/* ---------- Barras "más vendidos" ---------- */
+.rank{background:#fff; border:1px solid var(--borde); border-radius:18px; padding:14px 16px 12px;
+  display:flex; flex-direction:column; gap:10px}
+.rank .item{display:flex; justify-content:space-between; gap:12px; font-size:14px; font-weight:500}
+.rank .item b{color:var(--navy)}
+.rank .track{height:8px; border-radius:4px; background:#EFE7D8; margin-top:5px}
+.rank .track div{height:8px; border-radius:4px; background:#3B5B96}
+.rank .track.top div{background:var(--mostaza)}
+
+/* ---------- Órdenes como tarjetas ---------- */
+.orden{background:#fff; border:1px solid var(--borde); border-radius:16px; padding:12px 14px; margin-bottom:10px}
+.orden header{display:flex; align-items:center; gap:8px}
+.orden header b{font-size:16px; color:var(--navy)}
+.orden time{flex:1; color:var(--gris); font-size:13px}
+.orden strong{font-size:17px}
+.orden ul{margin:8px 0 0; padding:0; list-style:none; font-size:14px; line-height:1.5}
+.orden small{color:var(--gris)}
+.chip{background:#EADFCB; color:var(--navy); font-size:12px; font-weight:600; padding:3px 9px; border-radius:10px}
+
+/* ---------- "Qué se vendió" en acordeón ---------- */
+.cats{background:#fff; border:1px solid var(--borde); border-radius:18px; overflow:hidden}
+.cat{border-bottom:1px solid var(--borde)}
+.cat:last-child{border-bottom:0}
+.cat summary{min-height:56px; display:flex; align-items:center; justify-content:space-between;
+  padding:0 16px; font-weight:700; color:var(--navy); cursor:pointer; list-style:none}
+.cat summary::-webkit-details-marker{display:none}
+.cat summary span:last-child{font-size:14px; font-weight:600}
+.cat[open] summary{background:var(--navy); color:var(--crema)}
+.fila{display:flex; align-items:center; gap:14px; padding:12px 16px; border-top:1px solid #EFE7D8}
+.fila b{width:24px; font-size:18px; color:var(--navy)}
+.fila span:nth-child(2){flex:1; white-space:normal}
+.fila span:last-child{font-weight:600}
+
+/* ---------- Inventario de bebidas ---------- */
+.bebida{background:#fff; border:1px solid var(--borde); border-radius:16px; padding:10px 14px}
+.bebida-cab{display:flex; align-items:center; gap:12px; min-height:48px; justify-content:space-between}
+.bebida-cab b{display:block; font-size:16px}
+.bebida-cab small{color:var(--gris); font-size:13px}
+.sw{position:relative; display:flex; align-items:center; gap:10px; font-size:12px; color:var(--gris)}
+.sw input{position:absolute; right:0; opacity:0; width:52px; height:44px; margin:0}
+.sw i{width:52px; height:32px; border-radius:16px; background:#8A8068; padding:4px; display:flex; align-items:center}
+.sw i::after{content:""; width:24px; height:24px; border-radius:12px; background:#fff; transition:transform .15s}
+.sw input:checked + i{background:var(--navy)}
+.sw input:checked + i::after{transform:translateX(20px); background:var(--mostaza)}
+.sw input:focus-visible + i{outline:3px solid var(--mostaza); outline-offset:2px}
+.campos{display:none; grid-template-columns:1fr 1fr; gap:10px; margin-top:12px}
+.bebida:has(.conteo:checked){border-color:var(--navy)}
+.bebida:has(.conteo:checked) .campos{display:grid}
+.campos label{font-size:12px; font-weight:600; color:var(--gris)}
+.campos input{display:block; width:100%; height:48px; margin-top:4px; border:1px solid var(--input);
+  border-radius:12px; padding:0 14px; font-size:16px}
+.barra-guardar{position:sticky; bottom:calc(var(--nav-h) + env(safe-area-inset-bottom));
+  padding:10px 16px; background:var(--crema); border-top:1px solid var(--borde)}
+.barra-guardar button{width:100%; height:52px; border:0; border-radius:14px; background:var(--mostaza);
+  color:var(--navy); font-weight:700; letter-spacing:.8px; text-transform:uppercase}
+
+/* ---------- Barra inferior ---------- */
+.bnav{position:fixed; left:0; right:0; bottom:0; display:flex; background:#fff;
+  border-top:1px solid var(--borde); padding-bottom:env(safe-area-inset-bottom); z-index:20}
+.bnav button{flex:1; min-height:var(--nav-h); display:flex; flex-direction:column; align-items:center;
+  justify-content:center; gap:2px; border:0; background:none; font:500 11px 'Work Sans',sans-serif; color:var(--gris)}
+.bnav .pill{width:56px; height:30px; border-radius:15px; display:flex; align-items:center; justify-content:center}
+.bnav .activo{color:var(--navy); font-weight:700}
+.bnav .activo .pill{background:var(--mostaza)}
+
+/* ---------- Botón flotante +Gasto ---------- */
+.fab{position:fixed; right:16px; bottom:calc(var(--nav-h) + 16px + env(safe-area-inset-bottom));
+  height:56px; padding:0 22px; border:0; border-radius:28px; background:var(--mostaza); color:var(--navy);
+  font-weight:700; font-size:15px; box-shadow:0 6px 16px rgba(27,42,78,.28); z-index:15}
+body:not([data-grupo="gastos"]) .fab{display:none}
+
+/* ---------- Hoja inferior (dialog) ---------- */
+dialog.hoja{margin:auto 0 0; width:100%; max-width:none; border:0; border-radius:24px 24px 0 0;
+  padding:16px 20px calc(24px + env(safe-area-inset-bottom))}
+dialog.hoja::backdrop{background:rgba(27,42,78,.6)}
+dialog.hoja header{display:flex; align-items:center; justify-content:space-between}
+dialog.hoja h2{margin:0; font-family:'Anton',sans-serif; font-weight:400; font-size:26px; letter-spacing:.5px; color:var(--navy)}
+dialog.hoja header button{width:44px; height:44px; border:0; background:none; font-size:22px; color:var(--navy)}
+dialog.hoja label{display:block; font-size:13px; font-weight:600; color:var(--gris); margin:14px 0 6px}
+dialog.hoja input,dialog.hoja select{width:100%; height:52px; border:1px solid var(--input);
+  border-radius:12px; padding:0 14px; font-size:16px; background:#fff}
+.monto{display:flex; align-items:center; gap:8px; border:1px solid var(--input); border-radius:12px; padding:0 14px}
+.monto span{font-size:18px; font-weight:600; color:var(--gris)}
+.monto input{border:0 !important; outline:0; flex:1; min-width:0; padding:0 !important; font-size:18px !important; font-weight:600}
+.guardar{width:100%; height:54px; margin-top:18px; border:0; border-radius:14px; background:var(--mostaza);
+  color:var(--navy); font-weight:700; letter-spacing:.8px; text-transform:uppercase}
+
+/* Menú "Más" */
+#menu-mas a,#menu-mas button.cerrar{display:flex; align-items:center; min-height:52px; padding:0 4px;
+  border:0; background:none; font-size:16px; font-weight:600; color:var(--navy); text-decoration:none;
+  border-bottom:1px solid var(--borde); width:100%}
+
+/* Input "día del mes" de gastos fijos: mismo estilo que los demás */
+input[type=number]{height:52px; border:1px solid var(--input); border-radius:12px; padding:0 14px; font-size:16px}

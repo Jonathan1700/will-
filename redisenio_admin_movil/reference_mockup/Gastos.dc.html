@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Gastos y ganancia</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Work+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:'Work Sans',sans-serif;background:#F5EEE2}
+button{font-family:inherit;cursor:pointer}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; position: relative; display: flex; flex-direction: column; background: #F5EEE2; overflow: hidden; font-family: 'Work Sans', sans-serif; color: #1A1A1A">
+
+<header style="height: 56px; flex-shrink: 0; background: #1B2A4E; display: flex; align-items: center; justify-content: space-between; padding: 0 8px 0 16px">
+<div style="display: flex; align-items: center; gap: 10px">
+<div style="font-family: 'Anton', sans-serif; font-size: 26px; letter-spacing: 0.5px; color: #F5EEE2">BRASAS</div>
+<span style="background: #F2A63B; color: #1B2A4E; font-size: 11px; font-weight: 700; letter-spacing: 0.8px; padding: 4px 8px; border-radius: 6px">ADMIN</span>
+</div>
+<button type="button" aria-label="Exportar a Excel" style="width: 44px; height: 44px; border: 0; background: transparent; color: #F5EEE2; display: flex; align-items: center; justify-content: center">
+<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"></path><path d="M7 11l5 5 5-5"></path><path d="M4 20h16"></path></svg>
+</button>
+</header>
+
+<div style="flex-shrink: 0; padding: 12px 16px 8px">
+<div style="display: flex; gap: 4px; background: #FFFFFF; border: 1px solid #E6DCCB; border-radius: 14px; padding: 4px">
+<button type="button" style="flex: 1; height: 40px; border: 0; border-radius: 10px; background: #1B2A4E; color: #F5EEE2; font-size: 14px; font-weight: 600">Resumen</button>
+<button type="button" style="flex: 1; height: 40px; border: 0; border-radius: 10px; background: transparent; color: #5F5747; font-size: 14px; font-weight: 600">Diarios</button>
+<button type="button" style="flex: 1; height: 40px; border: 0; border-radius: 10px; background: transparent; color: #5F5747; font-size: 14px; font-weight: 600">Fijos</button>
+<button type="button" style="flex: 1; height: 40px; border: 0; border-radius: 10px; background: transparent; color: #5F5747; font-size: 14px; font-weight: 600">Margen</button>
+</div>
+</div>
+
+<div style="flex: 1; min-height: 0; overflow: hidden; padding: 4px 16px 12px; display: flex; flex-direction: column; gap: 10px">
+
+<div style="display: flex; gap: 10px; align-items: flex-start; background: #FFF1D6; border: 1px solid #E8C27A; border-radius: 14px; padding: 12px 14px">
+<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#7A4E00" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex-shrink: 0; margin-top: 1px"><circle cx="12" cy="12" r="9"></circle><path d="M12 11v5"></path><circle cx="12" cy="8" r="0.6"></circle></svg>
+<div style="font-size: 13px; line-height: 1.45; color: #4A3200">Hay datos desde el 26/09. Todavía no hay un mes completo, por eso el margen no se calcula.</div>
+</div>
+
+<div style="font-size: 13px; font-weight: 700; letter-spacing: 0.8px; color: #1B2A4E; padding-top: 2px">MES EN CURSO · SEPTIEMBRE 2026</div>
+
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px">
+<div style="background: #1B2A4E; border-radius: 16px; padding: 14px 16px">
+<div style="font-size: 13px; font-weight: 500; color: #D9D2C3">Ingresos</div>
+<div style="font-size: 26px; font-weight: 700; color: #F5EEE2; margin-top: 4px">$59,70</div>
+</div>
+<div style="background: #FFFFFF; border: 1px solid #E6DCCB; border-radius: 16px; padding: 14px 16px">
+<div style="font-size: 13px; font-weight: 500; color: #5F5747">Gastos</div>
+<div style="font-size: 26px; font-weight: 700; color: #1B2A4E; margin-top: 4px">$2.753,00</div>
+</div>
+</div>
+
+<div style="background: #FFFFFF; border: 1px solid #E6DCCB; border-radius: 16px; padding: 14px 16px">
+<div style="display: flex; align-items: baseline; justify-content: space-between">
+<div style="font-size: 13px; font-weight: 500; color: #5F5747">Resultado del mes (pérdida)</div>
+<div style="font-size: 26px; font-weight: 700; color: #B23A2A">-$2.693,30</div>
+</div>
+<div style="height: 10px; border-radius: 5px; background: #EFE7D8; margin-top: 12px"><div style="width: 2%; min-width: 8px; height: 10px; border-radius: 5px; background: #F2A63B"></div></div>
+<div style="font-size: 13px; line-height: 1.45; color: #1A1A1A; margin-top: 10px">Gastos cubiertos: 2%. Faltan <strong>$2.693,30</strong> en ventas para cubrir los gastos del mes.</div>
+<div style="font-size: 12px; color: #5F5747; margin-top: 4px">Margen: sin datos suficientes todavía</div>
+</div>
+
+<div style="font-size: 13px; font-weight: 700; letter-spacing: 0.8px; color: #1B2A4E; padding-top: 4px">SÁB 26/09/2026</div>
+
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px">
+<div style="background: #FFFFFF; border: 1px solid #E6DCCB; border-radius: 16px; padding: 12px 16px">
+<div style="font-size: 13px; font-weight: 500; color: #5F5747">Gastos del día</div>
+<div style="font-size: 22px; font-weight: 700; color: #1B2A4E; margin-top: 2px">$0,00</div>
+</div>
+<div style="background: #FFFFFF; border: 1px solid #E6DCCB; border-radius: 16px; padding: 12px 16px">
+<div style="font-size: 13px; font-weight: 500; color: #5F5747">Ganancia del día</div>
+<div style="font-size: 22px; font-weight: 700; color: #2B6236; margin-top: 2px">$59,70</div>
+</div>
+</div>
+
+</div>
+
+<a href="NuevoGasto.dc.html" style="position: absolute; right: 16px; bottom: 88px; height: 56px; padding: 0 22px 0 18px; border-radius: 28px; background: #F2A63B; color: #1B2A4E; display: flex; align-items: center; gap: 8px; text-decoration: none; font-size: 15px; font-weight: 700; box-shadow: 0 6px 16px rgba(27, 42, 78, 0.28)">
+<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg>
+Gasto</a>
+
+<nav aria-label="Secciones del panel" style="flex-shrink: 0; display: flex; background: #FFFFFF; border-top: 1px solid #E6DCCB; padding: 4px 4px 0">
+<a href="Main.dc.html" style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 6px 0 10px; text-decoration: none; color: #5F5747; font-size: 11px; font-weight: 500">
+<span style="display: flex; align-items: center; justify-content: center; width: 56px; height: 30px; border-radius: 15px; background: transparent"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="9" rx="1.5"></rect><rect x="14" y="3" width="7" height="5" rx="1.5"></rect><rect x="14" y="12" width="7" height="9" rx="1.5"></rect><rect x="3" y="16" width="7" height="5" rx="1.5"></rect></svg></span>Resumen</a>
+<a href="Ventas.dc.html" style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 6px 0 10px; text-decoration: none; color: #5F5747; font-size: 11px; font-weight: 500">
+<span style="display: flex; align-items: center; justify-content: center; width: 56px; height: 30px; border-radius: 15px; background: transparent"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"></path><path d="M9 8h6"></path><path d="M9 12h6"></path></svg></span>Ventas</a>
+<a href="Inventario.dc.html" style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 6px 0 10px; text-decoration: none; color: #5F5747; font-size: 11px; font-weight: 500">
+<span style="display: flex; align-items: center; justify-content: center; width: 56px; height: 30px; border-radius: 15px; background: transparent"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7l9-4 9 4-9 4z"></path><path d="M3 7v10l9 4 9-4V7"></path><path d="M12 11v10"></path></svg></span>Inventario</a>
+<a href="Gastos.dc.html" style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 6px 0 10px; text-decoration: none; color: #1B2A4E; font-size: 11px; font-weight: 700">
+<span style="display: flex; align-items: center; justify-content: center; width: 56px; height: 30px; border-radius: 15px; background: #F2A63B"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="6" width="18" height="13" rx="2"></rect><path d="M3 10h18"></path><circle cx="16" cy="14.5" r="1.2"></circle></svg></span>Gastos</a>
+<button type="button" style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 6px 0 10px; border: 0; background: transparent; color: #5F5747; font-size: 11px; font-weight: 500">
+<span style="display: flex; align-items: center; justify-content: center; width: 56px; height: 30px; border-radius: 15px; background: transparent"><svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.7"></circle><circle cx="12" cy="12" r="1.7"></circle><circle cx="19" cy="12" r="1.7"></circle></svg></span>Más</button>
+</nav>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>

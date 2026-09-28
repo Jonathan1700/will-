@@ -1,0 +1,40 @@
+{# Grupo INVENTARIO. Formulario ÚNICO con botón sticky. ADAPTAR nombres de campos al form actual. #}
+<form method="post" action="{% url 'guardar_inventario' %}">  {# ADAPTAR URL #}
+  {% csrf_token %}
+  <div class="contenido">
+    <h2 style="margin:0;font-size:20px;color:var(--navy)">Inventario de bebidas</h2>
+    <p style="margin:0;font-size:13px;color:var(--gris)">
+      Activa "Llevar conteo" en las que vienen en botella o lata. Se descuentan solas con cada orden;
+      en 0 el mesero las ve agotadas. El precio de compra sirve para calcular el margen real.
+    </p>
+
+    {% for grupo in grupos_bebida %}
+    <h3 class="titulo-sec">{{ grupo.nombre|upper }}</h3>
+    {% for b in grupo.items %}
+    <div class="bebida">
+      <div class="bebida-cab">
+        <div>
+          <b>{{ b.nombre }}</b>
+          <small>{% if b.presentacion %}{{ b.presentacion }} · {% endif %}Vendidas: {{ b.vendidas }}</small>
+        </div>
+        <label class="sw">
+          <span>Llevar conteo</span>
+          <input type="checkbox" class="conteo" name="conteo_{{ b.id }}" {% if b.lleva_conteo %}checked{% endif %}>
+          <i></i>
+        </label>
+      </div>
+      <div class="campos">
+        <label>Unidades en stock
+          <input type="text" inputmode="numeric" name="stock_{{ b.id }}" value="{{ b.stock|default_if_none:'' }}">
+        </label>
+        <label>Precio de compra
+          <input type="text" inputmode="decimal" name="costo_{{ b.id }}" value="{{ b.costo|default_if_none:'' }}">
+        </label>
+      </div>
+    </div>
+    {% endfor %}
+    {% endfor %}
+  </div>
+
+  <div class="barra-guardar"><button type="submit">Guardar inventario</button></div>
+</form>

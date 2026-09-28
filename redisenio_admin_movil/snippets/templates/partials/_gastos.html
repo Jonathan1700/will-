@@ -1,0 +1,85 @@
+{% load formato %}
+{# Grupo GASTOS con 4 sub-pestañas + FAB + hoja para agregar gasto #}
+<div class="subtabs">
+  <button type="button" data-sub-btn="g-resumen" class="activo">Resumen</button>
+  <button type="button" data-sub-btn="g-diarios">Diarios</button>
+  <button type="button" data-sub-btn="g-fijos">Fijos</button>
+  <button type="button" data-sub-btn="g-margen">Margen</button>
+</div>
+
+{# ---------- Resumen ---------- #}
+<div class="contenido" data-sub="g-resumen">
+  {% if datos_parciales %}
+  <div class="aviso">Hay datos desde el {{ primer_dia|date:"d/m" }}. Todavía no hay un mes completo, por eso el margen no se calcula.</div>
+  {% endif %}
+
+  <h3 class="titulo-sec">MES EN CURSO · {{ hoy|date:"F Y"|upper }}</h3>
+  <div class="par">
+    <div class="kpi oscuro"><small>Ingresos</small><b>{{ ingresos_mes|dinero }}</b></div>
+    <div class="kpi"><small>Gastos</small><b>{{ gastos_mes|dinero }}</b></div>
+  </div>
+
+  <div class="kpi">
+    <small>Resultado del mes{% if resultado < 0 %} (pérdida){% endif %}</small>
+    <b class="{% if resultado < 0 %}neg{% else %}pos{% endif %}">{{ resultado|dinero }}</b>
+    {% if cobertura is not None %}
+      <div class="barra"><div style="width:{% if cobertura > 100 %}100{% else %}{{ cobertura }}{% endif %}%"></div></div>
+      {% if faltan %}<p>Gastos cubiertos: {{ cobertura }}%. Faltan <strong>{{ faltan|dinero }}</strong> en ventas para cubrir los gastos del mes.</p>{% endif %}
+    {% endif %}
+    <p class="peq">Margen: {% if margen is None %}sin datos suficientes todavía{% else %}{{ margen }}%{% endif %}</p>
+  </div>
+
+  <h3 class="titulo-sec">{{ fecha|date:"D d/m/Y"|upper }}</h3>
+  <div class="par">
+    <div class="kpi"><small>Gastos del día</small><b>{{ gastos_dia|dinero }}</b></div>
+    <div class="kpi"><small>Ganancia del día</small><b class="{% if ganancia_dia < 0 %}neg{% else %}pos{% endif %}">{{ ganancia_dia|dinero }}</b></div>
+  </div>
+</div>
+
+{# ---------- Diarios: lista arriba (el formulario vive en la hoja) ---------- #}
+<div class="contenido" data-sub="g-diarios" hidden>
+  <h3 class="titulo-sec">GASTOS DEL PERIODO</h3>
+  {% for g in gastos %}
+  <div class="orden">
+    <header><b>{{ g.descripcion }}</b><time>{{ g.fecha|date:"d/m" }}</time><strong>{{ g.monto|dinero }}</strong></header>
+    <small>{{ g.categoria }}</small>
+  </div>
+  {% empty %}
+  <div class="kpi" style="text-align:center;color:var(--gris);font-size:14px">Sin gastos cargados en este periodo.</div>
+  {% endfor %}
+</div>
+
+{# ---------- Fijos: mantener el contenido actual (formulario de gastos fijos) ---------- #}
+<div class="contenido" data-sub="g-fijos" hidden>
+  {# ADAPTAR: pegar aquí tu bloque actual de gastos fijos. Usar los mismos estilos de input. #}
+</div>
+
+{# ---------- Margen: mantener el contenido actual ---------- #}
+<div class="contenido" data-sub="g-margen" hidden>
+  {# ADAPTAR: pegar aquí tu bloque actual de margen #}
+</div>
+
+<button type="button" class="fab" data-abrir="hoja-gasto">+ Gasto</button>
+
+<dialog id="hoja-gasto" class="hoja">
+  <form method="post" action="{% url 'agregar_gasto' %}">  {# ADAPTAR URL #}
+    {% csrf_token %}
+    <header><h2>NUEVO GASTO</h2><button type="button" aria-label="Cerrar" data-cerrar>✕</button></header>
+
+    <label for="g-fecha">Fecha</label>
+    <input id="g-fecha" type="date" name="fecha" value="{{ fecha|date:'Y-m-d' }}">
+
+    <label for="g-cat">Categoría</label>
+    <select id="g-cat" name="categoria">
+      {% for c in categorias_gasto %}<option value="{{ c.id }}">{{ c.nombre }}</option>{% endfor %}
+    </select>
+
+    <label for="g-desc">Descripción</label>
+    <input id="g-desc" type="text" name="descripcion" placeholder="Ej: 20 pollos, 15 kg de papa">
+
+    <label for="g-monto">Monto</label>
+    <div class="monto"><span>$</span><input id="g-monto" type="text" inputmode="decimal" name="monto" placeholder="0.00"></div>
+
+    <button type="submit" class="guardar">Agregar gasto</button>
+  </form>
+</dialog>

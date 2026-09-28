@@ -1,0 +1,549 @@
+/* ==========================================================
+   Panel admin movil (/reportes/) - barra inferior, tarjetas y hojas.
+   Todo escopado bajo .panel-admin-movil para no chocar con el resto del
+   sitio (mesero/cocina), que sigue usando header.top y las fuentes tal
+   cual las define estilo.css. Reutiliza las variables de color de
+   estilo.css (--navy, --mustard, --cream, --line, --ink-soft, --danger,
+   --ok) en vez de redefinir la paleta.
+   ========================================================== */
+.panel-admin-movil {
+    --nav-h: 64px;
+    --input-borde: #CFC3AC;
+    padding-bottom: calc(var(--nav-h) + 16px + env(safe-area-inset-bottom));
+}
+
+.panel-admin-movil button,
+.panel-admin-movil input,
+.panel-admin-movil select {
+    font-family: inherit;
+}
+
+.panel-admin-movil button { cursor: pointer; }
+
+/* ---------- Encabezado: icono de exportar en vez del boton ancho ---------- */
+.panel-admin-movil header.top .top-icono {
+    width: 44px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--cream);
+    border-radius: 8px;
+}
+
+.panel-admin-movil header.top .top-icono:hover { background: rgba(245, 239, 226, .12); }
+
+/* ---------- Filtro Dia/Semana/Mes + navegacion de fecha: bloque sticky ---------- */
+.panel-admin-movil .filtro-periodo {
+    position: sticky;
+    top: var(--top-h, 58px);
+    z-index: 60;
+    background: var(--cream);
+    padding: 10px 16px 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.panel-admin-movil[data-grupo="inventario"] .filtro-periodo { display: none; }
+
+.panel-admin-movil .seg {
+    display: flex;
+    gap: 4px;
+    background: #FFFFFF;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 4px;
+}
+
+.panel-admin-movil .seg a {
+    flex: 1;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--ink-soft);
+    text-decoration: none;
+}
+
+.panel-admin-movil .seg a.on { background: var(--navy); color: var(--cream); }
+
+.panel-admin-movil .fecha {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+}
+
+.panel-admin-movil .fecha .nav-fecha { flex: 1; }
+
+.panel-admin-movil .fecha span,
+.panel-admin-movil .fecha input {
+    flex: 1;
+    text-align: center;
+    font-weight: 600;
+    color: var(--navy);
+    font-size: 15px;
+}
+
+.panel-admin-movil .fecha input {
+    width: 100%;
+    height: 44px;
+    border: none;
+    background: transparent;
+    font-family: inherit;
+}
+
+.panel-admin-movil .fecha a.nav-btn {
+    min-width: 44px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--navy);
+    text-decoration: none;
+    font-size: 20px;
+}
+
+.panel-admin-movil .fecha .nav-hoy {
+    min-height: 44px;
+    padding: 0 14px;
+    display: flex;
+    align-items: center;
+    border-radius: 22px;
+    background: #EADFCB;
+    color: var(--navy);
+    font-size: 13px;
+    font-weight: 600;
+    text-decoration: none;
+    white-space: nowrap;
+}
+
+/* ---------- Contenido de cada grupo ---------- */
+.panel-admin-movil .contenido {
+    padding: 4px 16px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+/* ---------- Sub-pestanas dentro de un grupo (Ventas, Gastos) ---------- */
+.panel-admin-movil .subtabs {
+    display: flex;
+    gap: 4px;
+    border-bottom: 2px solid var(--line);
+    margin: 0 16px;
+    position: sticky;
+    top: calc(var(--top-h, 58px) + 96px);
+    background: var(--cream);
+    z-index: 50;
+}
+
+.panel-admin-movil .subtabs button {
+    flex: 1;
+    min-height: 44px;
+    border: 0;
+    background: none;
+    font-size: 14.5px;
+    font-weight: 600;
+    color: var(--ink-soft);
+    border-bottom: 3px solid transparent;
+    margin-bottom: -2px;
+}
+
+.panel-admin-movil .subtabs button.activo {
+    color: var(--navy);
+    font-weight: 700;
+    border-bottom-color: var(--mustard);
+}
+
+/* ---------- Barra inferior fija de 5 items ---------- */
+.panel-admin-movil .bnav {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    background: #FFFFFF;
+    border-top: 1px solid var(--line);
+    padding: 4px 4px calc(4px + env(safe-area-inset-bottom));
+    z-index: 80;
+}
+
+.panel-admin-movil .bnav button,
+.panel-admin-movil .bnav a {
+    flex: 1;
+    min-height: 52px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    border: 0;
+    background: none;
+    text-decoration: none;
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--ink-soft);
+    padding: 4px 0;
+}
+
+.panel-admin-movil .bnav .pill {
+    width: 52px;
+    height: 30px;
+    border-radius: 15px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.panel-admin-movil .bnav .activo { color: var(--navy); font-weight: 700; }
+.panel-admin-movil .bnav .activo .pill { background: var(--mustard); }
+
+/* ---------- Aviso de datos parciales y barra de cobertura (ver estilo.css) ---------- */
+.panel-admin-movil .aviso-parcial { margin: 0 16px 4px; }
+
+/* ---------- Boton flotante "+ Gasto": solo en el grupo Gastos ---------- */
+.panel-admin-movil .fab {
+    position: fixed;
+    right: 16px;
+    bottom: calc(var(--nav-h) + 16px + env(safe-area-inset-bottom));
+    height: 52px;
+    padding: 0 22px 0 18px;
+    border: 0;
+    border-radius: 26px;
+    background: var(--mustard);
+    color: var(--navy);
+    display: none;
+    align-items: center;
+    gap: 8px;
+    font-size: 15px;
+    font-weight: 700;
+    box-shadow: 0 6px 16px rgba(27, 42, 78, .28);
+    z-index: 70;
+}
+
+.panel-admin-movil[data-grupo="gastos"] .fab { display: flex; }
+
+/* ---------- Hoja inferior (<dialog>): "+ Gasto" y menu "Mas" ---------- */
+.panel-admin-movil dialog.hoja {
+    margin: auto 0 0;
+    width: 100%;
+    max-width: 520px;
+    max-height: 90vh;
+    overflow-y: auto;
+    border: 0;
+    border-radius: 22px 22px 0 0;
+    padding: 10px 20px calc(20px + env(safe-area-inset-bottom));
+}
+
+.panel-admin-movil dialog.hoja::backdrop { background: rgba(16, 27, 48, .6); }
+
+.panel-admin-movil dialog.hoja .agarradera {
+    width: 44px;
+    height: 5px;
+    border-radius: 3px;
+    background: var(--input-borde);
+    align-self: center;
+    margin: 4px 0 10px;
+}
+
+.panel-admin-movil dialog.hoja header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 6px;
+}
+
+.panel-admin-movil dialog.hoja h2 {
+    margin: 0;
+    font-family: 'Anton', sans-serif;
+    font-weight: 400;
+    font-size: 24px;
+    letter-spacing: .4px;
+    text-transform: uppercase;
+    color: var(--navy);
+}
+
+.panel-admin-movil dialog.hoja header button {
+    width: 44px;
+    height: 44px;
+    border: 0;
+    background: none;
+    font-size: 20px;
+    color: var(--navy);
+}
+
+.panel-admin-movil dialog.hoja label {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--ink-soft);
+    margin: 14px 0 6px;
+}
+
+.panel-admin-movil dialog.hoja input,
+.panel-admin-movil dialog.hoja select {
+    width: 100%;
+    height: 50px;
+    border: 1px solid var(--input-borde);
+    border-radius: 12px;
+    padding: 0 14px;
+    font-size: 16px;
+    background: #FFFFFF;
+}
+
+.panel-admin-movil .campo-monto-hoja {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    height: 50px;
+    border: 1px solid var(--input-borde);
+    border-radius: 12px;
+    padding: 0 14px;
+}
+
+.panel-admin-movil .campo-monto-hoja span { font-size: 17px; font-weight: 600; color: var(--ink-soft); }
+
+.panel-admin-movil .campo-monto-hoja input {
+    border: 0 !important;
+    outline: 0;
+    flex: 1;
+    min-width: 0;
+    padding: 0 !important;
+    height: auto !important;
+    font-size: 17px !important;
+    font-weight: 600;
+}
+
+.panel-admin-movil dialog.hoja .btn-guardar { width: 100%; margin-top: 16px; }
+
+/* Menu "Mas" */
+.panel-admin-movil #menu-mas a,
+.panel-admin-movil #menu-mas button.cerrar {
+    display: flex;
+    align-items: center;
+    min-height: 52px;
+    padding: 0 4px;
+    border: 0;
+    background: none;
+    font-size: 15.5px;
+    font-weight: 600;
+    color: var(--navy);
+    text-decoration: none;
+    border-bottom: 1px solid var(--line);
+    width: 100%;
+}
+
+.panel-admin-movil #menu-mas button.cerrar { color: var(--ink-soft); border-bottom: none; margin-top: 4px; }
+
+/* ---------- Mas vendidos: ranking sin SVG, nombres largos envuelven a 2 lineas ---------- */
+.panel-admin-movil .rank { display: flex; flex-direction: column; gap: 12px; }
+
+.panel-admin-movil .rank-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 12px;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.panel-admin-movil .rank-item span { flex: 1; min-width: 0; white-space: normal; line-height: 1.3; }
+.panel-admin-movil .rank-item b { flex-shrink: 0; color: var(--navy); font-variant-numeric: tabular-nums; }
+
+.panel-admin-movil .rank-track { height: 8px; border-radius: 4px; background: var(--viz-grid, #ECE7DB); margin-top: 5px; overflow: hidden; }
+.panel-admin-movil .rank-track div { height: 100%; border-radius: 4px; background: var(--viz-1, #34558B); }
+.panel-admin-movil .rank-track.top div { background: var(--mustard); }
+
+/* ---------- Ordenes como tarjetas ---------- */
+.panel-admin-movil .orden-tarjeta {
+    background: #FFFFFF;
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    padding: 12px 14px;
+    margin-bottom: 10px;
+}
+
+.panel-admin-movil .orden-tarjeta:last-child { margin-bottom: 0; }
+
+.panel-admin-movil .orden-total-periodo {
+    text-align: right;
+    font-size: 13px;
+    color: var(--ink-soft);
+    margin: 4px 0 0;
+}
+
+.panel-admin-movil .orden-tarjeta header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.panel-admin-movil .orden-tarjeta .orden-num { font-size: 16px; font-weight: 700; color: var(--navy); }
+.panel-admin-movil .orden-tarjeta time { flex: 1; color: var(--ink-soft); font-size: 13px; }
+.panel-admin-movil .orden-tarjeta .orden-total { font-size: 17px; font-weight: 700; }
+.panel-admin-movil .orden-tarjeta ul { margin: 8px 0 0; padding: 0; list-style: none; font-size: 14px; line-height: 1.5; }
+.panel-admin-movil .orden-tarjeta small { color: var(--ink-soft); }
+
+/* ---------- "Que se vendio" en acordeon ---------- */
+.panel-admin-movil .cats {
+    background: #FFFFFF;
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    overflow: hidden;
+}
+
+.panel-admin-movil .cat { border-bottom: 1px solid var(--line); }
+.panel-admin-movil .cat:last-child { border-bottom: 0; }
+
+.panel-admin-movil .cat summary {
+    min-height: 52px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 10px 16px;
+    font-weight: 700;
+    color: var(--navy);
+    cursor: pointer;
+    list-style: none;
+}
+
+.panel-admin-movil .cat summary::-webkit-details-marker { display: none; }
+.panel-admin-movil .cat summary span:last-child { font-size: 13px; font-weight: 600; white-space: nowrap; }
+.panel-admin-movil .cat[open] summary { background: var(--navy); color: var(--cream); }
+
+.panel-admin-movil .fila-vendido {
+    display: flex;
+    align-items: baseline;
+    gap: 14px;
+    padding: 10px 16px;
+    border-top: 1px solid var(--viz-grid, #ECE7DB);
+    font-size: 13.5px;
+}
+
+.panel-admin-movil .fila-vendido b { min-width: 26px; font-size: 16px; color: var(--navy); }
+.panel-admin-movil .fila-vendido span { flex: 1; white-space: normal; line-height: 1.35; }
+.panel-admin-movil .fila-vendido em { font-style: normal; font-weight: 600; white-space: nowrap; }
+
+/* ---------- Inventario de bebidas: tarjeta por producto ---------- */
+.panel-admin-movil .bebida-tarjeta {
+    background: #FFFFFF;
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    padding: 10px 14px;
+    margin-bottom: 10px;
+}
+
+.panel-admin-movil .bebida-tarjeta:last-child { margin-bottom: 0; }
+.panel-admin-movil .bebida-tarjeta.con-conteo { border-color: var(--navy); }
+.panel-admin-movil .bebida-tarjeta.inv-agotado .bebida-nombre { color: var(--danger); }
+.panel-admin-movil .bebida-tarjeta.inv-bajo .bebida-nombre { color: var(--mustard-dark); }
+
+.panel-admin-movil .bebida-cab {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-height: 48px;
+    justify-content: space-between;
+}
+
+.panel-admin-movil .bebida-cab .bebida-nombre { display: block; font-size: 15.5px; font-weight: 600; }
+.panel-admin-movil .bebida-cab small { color: var(--ink-soft); font-size: 13px; }
+
+.panel-admin-movil .sw {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 11.5px;
+    font-weight: 500;
+    color: var(--ink-soft);
+    white-space: nowrap;
+}
+
+.panel-admin-movil .sw input {
+    position: absolute;
+    right: 0;
+    opacity: 0;
+    width: 52px;
+    height: 44px;
+    margin: 0;
+}
+
+.panel-admin-movil .sw i {
+    width: 48px;
+    height: 30px;
+    border-radius: 15px;
+    background: #8A8068;
+    padding: 3px;
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+}
+
+.panel-admin-movil .sw i::after {
+    content: "";
+    width: 24px;
+    height: 24px;
+    border-radius: 12px;
+    background: #FFFFFF;
+    transition: transform .15s ease;
+}
+
+.panel-admin-movil .sw input:checked + i { background: var(--navy); }
+.panel-admin-movil .sw input:checked + i::after { transform: translateX(18px); background: var(--mustard); }
+.panel-admin-movil .sw input:focus-visible + i { outline: 3px solid var(--mustard); outline-offset: 2px; }
+
+.panel-admin-movil .bebida-campos {
+    display: none;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-top: 12px;
+}
+
+.panel-admin-movil .bebida-tarjeta.con-conteo .bebida-campos { display: grid; }
+
+.panel-admin-movil .bebida-campos label { display: block; font-size: 12px; font-weight: 600; color: var(--ink-soft); margin-bottom: 4px; }
+.panel-admin-movil .bebida-campos input {
+    width: 100%;
+    height: 46px;
+    border: 1px solid var(--input-borde);
+    border-radius: 12px;
+    padding: 0 14px;
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--navy);
+}
+
+.panel-admin-movil .barra-guardar-sticky {
+    position: sticky;
+    bottom: calc(var(--nav-h) + env(safe-area-inset-bottom));
+    padding: 10px 0;
+    background: var(--cream);
+    margin-top: 4px;
+}
+
+.panel-admin-movil .barra-guardar-sticky .btn-guardar { width: 100%; }
+
+/* ---------- Input "Dia del mes" de gastos fijos: mismo estilo que los demas ---------- */
+.panel-admin-movil .campo-gasto input[type="number"] {
+    width: 100%;
+    height: 42px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 0 10px;
+    font-family: inherit;
+    font-size: 13px;
+    background: #FFFFFF;
+}
+
+/* ---------- Desktop: la barra inferior no se ve rara en pantallas anchas ---------- */
+@media (min-width: 720px) {
+    .panel-admin-movil { max-width: 640px; margin: 0 auto; }
+    .panel-admin-movil .bnav { max-width: 640px; margin: 0 auto; left: 0; right: 0; border-radius: 14px 14px 0 0; border-left: 1px solid var(--line); border-right: 1px solid var(--line); }
+    .panel-admin-movil dialog.hoja { max-width: 480px; margin: auto; border-radius: 22px; }
+}

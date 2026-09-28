@@ -914,7 +914,7 @@ def _ordenes_periodo(desde, hasta):
         creado__date__gte=desde,
         creado__date__lte=hasta,
         estado__in=["entregada", "cerrada"],
-    ).select_related("mesa").prefetch_related("items__producto", "items__acompanamiento")
+    ).select_related("mesa").prefetch_related("items__producto", "items__acompanamiento", "cuentas_estado")
 
 
 def _resumen(ordenes):
@@ -962,6 +962,37 @@ def _resumen_financiero_variable(financiero, ingresos):
     ganancia = ingresos - total_gastos
     margen = round(ganancia / ingresos * 100) if ingresos else None
     return {"gastos": gastos, "total_gastos": total_gastos, "ganancia": ganancia, "margen": margen}
+
+
+UMBRAL_DIAS_MES = 7  # dias minimos de ventas en el mes para confiar en el margen %
+
+
+def _cobertura_gastos(ordenes_mes, hoy, ingresos_mes, gastos_mes):
+    """Cuantos dias de ventas reales hay en lo que va del mes en curso: evita comparar los
+    gastos fijos de TODO el mes (alquiler, sueldos... generados desde el dia 1) contra
+    apenas 1 o 2 dias de ingresos, que es lo que producia el "-4511% de margen" a inicios
+    de mes. Con menos de UMBRAL_DIAS_MES dias de datos no se calcula el margen %, solo la
+    cobertura (que parte de los gastos ya cubren las ventas)."""
+    primera = ordenes_mes.order_by("creado").values_list("creado", flat=True).first()
+    if primera:
+        primer_dia = timezone.localtime(primera).date()
+        dias_con_datos = (hoy - primer_dia).days + 1
+    else:
+        primer_dia, dias_con_datos = None, 0
+
+    datos_parciales = dias_con_datos < UMBRAL_DIAS_MES
+    cobertura = round(ingresos_mes / gastos_mes * 100) if gastos_mes else None
+    faltan = max(gastos_mes - ingresos_mes, 0)
+    margen = None if (datos_parciales or not ingresos_mes) else round((ingresos_mes - gastos_mes) / ingresos_mes * 100)
+
+    return {
+        "primer_dia": primer_dia,
+        "dias_con_datos": dias_con_datos,
+        "datos_parciales": datos_parciales,
+        "cobertura": cobertura,
+        "faltan": faltan,
+        "margen": margen,
+    }
 
 
 def _generar_gastos_recurrentes(usuario):
@@ -1147,10 +1178,12 @@ def reportes(request):
     # ---- ganancia del mes en curso: fija, no cambia con el selector dia/semana/mes,
     # para que el dueño siempre pueda ver de ahi cuanto hay para repartir de sueldos ----
     mes_desde = hoy.replace(day=1)
-    mes_ingresos = _resumen(_ordenes_periodo(mes_desde, hoy))["ingresos"]
+    ordenes_mes = _ordenes_periodo(mes_desde, hoy)
+    mes_ingresos = _resumen(ordenes_mes)["ingresos"]
     mes_actual = _resumen_financiero(mes_desde, hoy, mes_ingresos)
     mes_actual["ingresos"] = mes_ingresos
     mes_actual["etiqueta"] = f"{MESES[hoy.month - 1]} {hoy.year}"
+    mes_actual.update(_cobertura_gastos(ordenes_mes, hoy, mes_ingresos, mes_actual["total_gastos"]))
 
     anterior_ancla, siguiente_ancla = _navegacion(rango, desde, ancla)
     contexto = {
@@ -1169,6 +1202,8 @@ def reportes(request):
         },
         "titulo_serie": titulo_serie,
         "datos": {"serie": serie, "top": top_productos, "margenes": margen_grupos},
+        "top_productos": top_productos,
+        "top_max": top_productos[0]["cantidad"] if top_productos else 0,
         "desglose": desglose,
         "inventario": inventario,
         "todas": todas,

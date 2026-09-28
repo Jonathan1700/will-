@@ -1874,146 +1874,24 @@ a.btn-enviar-link {
     padding: 18px 20px 48px;
 }
 
-.dash-filtros {
-    display: flex;
-    align-items: center;
-    gap: 14px;
-    flex-wrap: wrap;
-    margin-bottom: 18px;
-}
-
-.rangos {
-    display: inline-flex;
-    background: #FFFFFF;
-    border: 1px solid var(--line);
-    border-radius: 10px;
-    padding: 3px;
-    gap: 2px;
-}
-
-.rango {
-    padding: 8px 16px;
-    border-radius: 8px;
-    font-size: 12.5px;
-    font-weight: 700;
-    color: var(--ink-soft);
-    text-decoration: none;
-}
-
-.rango.activo { background: var(--navy); color: var(--cream); }
-
-.navegar {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    background: #FFFFFF;
-    border: 1px solid var(--line);
-    border-radius: 10px;
-    padding: 3px;
-}
-
-.nav-btn {
-    width: 34px;
-    height: 34px;
-    display: grid;
-    place-items: center;
-    border-radius: 8px;
-    color: var(--navy);
+.filtro-etiqueta {
+    margin: 2px 0 0;
+    text-align: center;
     font-size: 12px;
-    text-decoration: none;
-}
-
-.nav-btn:hover { background: var(--cream); }
-
-.nav-fecha input {
-    height: 34px;
-    border: none;
-    background: transparent;
-    font-family: inherit;
-    font-size: 13px;
-    font-weight: 700;
-    color: var(--navy);
-    padding: 0 6px;
-    cursor: pointer;
-}
-
-.nav-hoy {
-    margin: 0 6px 0 2px;
-    padding: 6px 10px;
-    border-radius: 8px;
-    background: var(--cream);
-    color: var(--navy);
-    font-size: 11.5px;
-    font-weight: 700;
-    text-decoration: none;
-    white-space: nowrap;
-}
-
-.dash-etiqueta {
-    font-size: 13px;
     font-weight: 600;
     color: var(--ink-soft);
 }
 
-.btn-exportar {
-    margin-left: auto;
-    padding: 9px 16px;
-    border-radius: 8px;
-    background: #FFFFFF;
-    border: 1.5px solid var(--navy);
-    color: var(--navy);
-    font-size: 12.5px;
-    font-weight: 700;
-    text-decoration: none;
-}
-
-/* ---- menu lateral + contenido ---- */
-.dash-cuerpo {
-    display: grid;
-    grid-template-columns: 210px minmax(0, 1fr);
-    gap: 18px;
-    align-items: start;
-}
-
-.dash-menu {
-    position: sticky;
-    top: calc(var(--top-h) + 14px);
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    background: #FFFFFF;
-    border: 1px solid var(--line);
-    border-radius: 14px;
-    padding: 8px;
-}
-
-.menu-item {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 11px 12px;
-    border-radius: 10px;
-    font-size: 13px;
-    font-weight: 700;
-    color: var(--ink-soft);
-    text-decoration: none;
-}
-
-
-.menu-item:hover { background: var(--cream); color: var(--navy); }
-.menu-item.activo { background: var(--navy); color: var(--cream); }
-.menu-externo { margin-top: 6px; border-top: 1px solid var(--line); border-radius: 0 0 10px 10px; padding-top: 14px; }
-
-.dash-contenido { min-width: 0; }
-.seccion[hidden] { display: none; }
-
 /* ---- indicadores ---- */
 .kpis {
     display: grid;
-    grid-template-columns: 1.4fr repeat(3, 1fr);
+    grid-template-columns: 1.4fr repeat(2, 1fr);
     gap: 14px;
     margin-bottom: 18px;
 }
+
+/* fila de KPIs sin hero (Resumen: Ordenes/Ticket/Productos), 3 columnas iguales */
+.kpis-fila { grid-template-columns: repeat(3, 1fr); }
 
 .kpi {
     background: #FFFFFF;
@@ -2023,7 +1901,7 @@ a.btn-enviar-link {
     min-width: 0;
 }
 
-.kpi-hero { background: var(--navy); border-color: var(--navy); }
+.kpi-hero { background: var(--navy); border-color: var(--navy); margin-bottom: 14px; }
 .kpi-hero .kpi-label { color: rgba(245, 239, 226, .75); }
 .kpi-hero .kpi-valor { color: var(--cream); font-size: 40px; }
 .kpi-hero .kpi-delta.neutro { color: rgba(245, 239, 226, .6); }
@@ -2056,6 +1934,43 @@ a.btn-enviar-link {
 .kpi-hero .kpi-delta.sube { color: #8FD39A; }
 .kpi-hero .kpi-delta.baja { color: #F3A196; }
 .kpi-valor.neg { color: var(--danger); }
+
+/* ---- aviso de datos parciales (mes recien empezado) y cobertura de gastos ---- */
+.aviso-parcial {
+    display: flex;
+    gap: 10px;
+    background: #FFF1D6;
+    border: 1px solid #E8C27A;
+    border-radius: 14px;
+    padding: 12px 14px;
+    font-size: 13px;
+    line-height: 1.45;
+    color: #4A3200;
+    margin: 0 0 14px;
+}
+
+.cobertura { margin-top: 4px; }
+
+.cobertura-barra {
+    height: 10px;
+    border-radius: 5px;
+    background: var(--viz-grid, #ECE7DB);
+    overflow: hidden;
+}
+
+.cobertura-barra div {
+    height: 100%;
+    min-width: 8px;
+    border-radius: 5px;
+    background: var(--mustard);
+}
+
+.cobertura-texto {
+    font-size: 13px;
+    line-height: 1.45;
+    color: var(--ink);
+    margin: 10px 0 0;
+}
 
 /* ---- gastos de materia prima (dashboard) ---- */
 .plantillas-gasto {
@@ -2182,41 +2097,6 @@ a.btn-enviar-link {
     white-space: nowrap;
 }
 
-/* que se vendio: columnas por categoria */
-.desglose {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
-    gap: 16px 22px;
-}
-
-.desglose-head {
-    display: flex;
-    justify-content: space-between;
-    align-items: baseline;
-    gap: 8px;
-    padding-bottom: 6px;
-    margin-bottom: 6px;
-    border-bottom: 2px solid var(--navy);
-}
-
-.desglose-nombre { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--navy); }
-.desglose-total { font-size: 11px; font-weight: 600; color: var(--ink-soft); white-space: nowrap; }
-
-.desglose-lista { list-style: none; margin: 0; padding: 0; }
-.desglose-lista li {
-    display: grid;
-    grid-template-columns: 34px 1fr auto;
-    gap: 8px;
-    align-items: baseline;
-    padding: 5px 0;
-    border-bottom: 1px solid var(--viz-grid);
-    font-size: 12.5px;
-}
-.desglose-lista li:last-child { border-bottom: none; }
-.desglose-lista strong { font-size: 15px; color: var(--navy); font-variant-numeric: tabular-nums; }
-.desglose-lista span { color: var(--ink); }
-.desglose-lista em { font-style: normal; font-size: 11.5px; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
-
 /* inventario */
 .inv-subtitulo {
     font-size: 13px;
@@ -2228,53 +2108,7 @@ a.btn-enviar-link {
 }
 .inv-subtitulo:first-of-type { margin-top: 0; }
 
-.inv-tabla td { vertical-align: middle; }
-.inv-tabla tr.inv-agotado td:first-child strong { color: var(--danger); }
-.inv-tabla tr.inv-bajo td:first-child strong { color: var(--mustard-dark); }
-
-.inv-switch { position: relative; display: inline-block; width: 44px; height: 26px; cursor: pointer; }
-.inv-switch input { position: absolute; opacity: 0; width: 0; height: 0; }
-.inv-switch span {
-    position: absolute; inset: 0;
-    background: #D9D3C5;
-    border-radius: 26px;
-    transition: background .15s ease;
-}
-.inv-switch span::before {
-    content: "";
-    position: absolute;
-    width: 20px; height: 20px;
-    left: 3px; top: 3px;
-    border-radius: 50%;
-    background: #FFFFFF;
-    box-shadow: 0 1px 3px rgba(0,0,0,.25);
-    transition: transform .15s ease;
-}
-.inv-switch input:checked + span { background: var(--navy); }
-.inv-switch input:checked + span::before { transform: translateX(18px); }
-.inv-switch input:focus-visible + span { outline: 3px solid var(--mustard); outline-offset: 2px; }
-
-.inv-input {
-    width: 92px;
-    height: 38px;
-    border: 1.5px solid var(--line);
-    border-radius: 8px;
-    padding: 0 10px;
-    font-family: inherit;
-    font-size: 15px;
-    font-weight: 700;
-    color: var(--navy);
-    font-variant-numeric: tabular-nums;
-}
-.inv-input:focus { border-color: var(--navy); outline: none; }
-.inv-input:disabled { background: #F4F1EA; color: var(--ink-soft); }
-
-.inv-precio-wrap { display: inline-flex; align-items: center; gap: 5px; }
-.inv-precio-signo { color: var(--ink-soft); font-weight: 700; }
-
 .chip-ok { background: var(--ok-bg); color: var(--ok); }
-
-.inv-acciones { display: flex; justify-content: flex-end; padding-top: 12px; }
 
 .btn-guardar {
     height: 46px;
@@ -2377,20 +2211,7 @@ a.btn-enviar-link {
 }
 
 @media (max-width: 900px) {
-    .kpis { grid-template-columns: repeat(2, 1fr); }
-    .kpi-hero { grid-column: 1 / -1; }
     .dash-grid { grid-template-columns: 1fr; }
-    .dash-cuerpo { grid-template-columns: 1fr; }
-    .dash-menu {
-        position: static;
-        flex-direction: row;
-        overflow-x: auto;
-        -webkit-overflow-scrolling: touch;
-        scrollbar-width: none;
-    }
-    .dash-menu::-webkit-scrollbar { display: none; }
-    .menu-item { white-space: nowrap; }
-    .menu-externo { margin: 0 0 0 auto; border: none; padding-top: 11px; }
 }
 
 /* celular: el dashboard se usa mucho para cargar gastos del dia sobre la marcha,
@@ -2403,23 +2224,9 @@ a.btn-enviar-link {
 
     .dash { padding: 14px 14px 40px; }
 
-    .dash-filtros { gap: 10px; }
-    .rangos, .navegar { flex: 1 1 100%; justify-content: center; }
-    .rango { flex: 1; text-align: center; padding: 10px 8px; }
-    .dash-etiqueta { order: 3; flex: 1 1 100%; }
-    .btn-exportar {
-        order: 4;
-        flex: 1 1 100%;
-        margin-left: 0;
-        text-align: center;
-        display: block;
-    }
-
-    .kpis { grid-template-columns: 1fr; }
     .kpi-hero .kpi-valor { font-size: 32px; }
 
     .panel { padding: 14px 14px 12px; }
-    .menu-item { padding: 10px 12px; font-size: 12.5px; }
 
     .gasto-form { gap: 10px; }
     .campo-gasto,

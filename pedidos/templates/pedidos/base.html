@@ -3,9 +3,10 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>{% block titulo %}Pedidos{% endblock %}</title>
     <link rel="stylesheet" href="{% static 'pedidos/estilo.css' %}?v={{ css_version }}">
+    {% block extra_head %}{% endblock %}
     <link rel="manifest" href="{% static 'pedidos/manifest.webmanifest' %}">
     <meta name="theme-color" content="#1B2A4A">
     <meta name="mobile-web-app-capable" content="yes">
