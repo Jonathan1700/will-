@@ -271,55 +271,14 @@
         </section>
         </div>
 
-        {# ---- Diarios: gastos variables del período seleccionado ---- #}
+        {# ---- Diarios: gastos variables del período seleccionado (el "+ Gasto" que
+             abre el formulario esta en el boton flotante, ver mas abajo) ---- #}
         <div class="contenido" data-sub="g-diarios" hidden>
         <section class="panel panel-ancho">
             <header class="panel-head">
                 <h2>Gastos del período</h2>
                 <span class="panel-sub">{{ etiqueta }} · pollo, papa, vegetales, aceite, condimentos, bebidas...</span>
             </header>
-
-            {% if plantillas_gasto %}
-            <div class="plantillas-gasto">
-                <span class="campo-gasto-label">Gastos frecuentes:</span>
-                {% for pl in plantillas_gasto %}
-                <button type="button" class="chip-plantilla"
-                        data-categoria="{{ pl.categoria }}" data-descripcion="{{ pl.descripcion }}" data-monto="{{ pl.monto }}"
-                        onclick="llenarGasto(this)">
-                    {{ pl.descripcion }} · {{ pl.monto|dinero }}
-                </button>
-                {% endfor %}
-            </div>
-            {% endif %}
-
-            <form method="post" action="{% url 'agregar_gasto' %}" class="gasto-form" id="form-gasto">
-                {% csrf_token %}
-                <input type="hidden" name="volver" value="rango={{ rango }}&fecha={{ ancla|date:'Y-m-d' }}">
-                <label class="campo-gasto">
-                    <span class="campo-gasto-label">Fecha</span>
-                    <input type="date" name="fecha" value="{{ ancla|date:'Y-m-d' }}" required>
-                </label>
-                <label class="campo-gasto">
-                    <span class="campo-gasto-label">Categoría</span>
-                    <select name="categoria">
-                        {% for valor, nombre in categorias_gasto %}
-                        <option value="{{ valor }}">{{ nombre }}</option>
-                        {% endfor %}
-                    </select>
-                </label>
-                <label class="campo-gasto campo-gasto-ancho">
-                    <span class="campo-gasto-label">Descripción</span>
-                    <input type="text" name="descripcion" placeholder="Ej: 20 pollos, 15 kg de papa" required maxlength="200">
-                </label>
-                <label class="campo-gasto">
-                    <span class="campo-gasto-label">Monto</span>
-                    <span class="campo-monto">
-                        <span class="campo-monto-signo">$</span>
-                        <input type="number" name="monto" min="0.01" step="0.01" placeholder="0.00" required>
-                    </span>
-                </label>
-                <button type="submit" class="btn-guardar">Agregar gasto</button>
-            </form>
 
             <div class="tabla-scroll">
                 <table class="tabla">
@@ -474,6 +433,57 @@
         </section>
         </div>
     </div>
+
+    <button type="button" class="fab" data-abrir="hoja-gasto">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg>
+        Gasto
+    </button>
+
+    <dialog id="hoja-gasto" class="hoja">
+        <div class="agarradera"></div>
+        <form method="post" action="{% url 'agregar_gasto' %}" id="form-gasto">
+            {% csrf_token %}
+            <input type="hidden" name="volver" value="rango={{ rango }}&fecha={{ ancla|date:'Y-m-d' }}">
+            <header>
+                <h2>Nuevo gasto</h2>
+                <button type="button" aria-label="Cerrar" data-cerrar>✕</button>
+            </header>
+
+            {% if plantillas_gasto %}
+            <div class="plantillas-gasto">
+                <span class="campo-gasto-label">Gastos frecuentes:</span>
+                {% for pl in plantillas_gasto %}
+                <button type="button" class="chip-plantilla"
+                        data-categoria="{{ pl.categoria }}" data-descripcion="{{ pl.descripcion }}" data-monto="{{ pl.monto }}"
+                        onclick="llenarGasto(this)">
+                    {{ pl.descripcion }} · {{ pl.monto|dinero }}
+                </button>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <label for="g-fecha">Fecha</label>
+            <input id="g-fecha" type="date" name="fecha" value="{{ ancla|date:'Y-m-d' }}" required>
+
+            <label for="g-cat">Categoría</label>
+            <select id="g-cat" name="categoria">
+                {% for valor, nombre in categorias_gasto %}
+                <option value="{{ valor }}">{{ nombre }}</option>
+                {% endfor %}
+            </select>
+
+            <label for="g-desc">Descripción</label>
+            <input id="g-desc" type="text" name="descripcion" placeholder="Ej: 20 pollos, 15 kg de papa" required maxlength="200">
+
+            <label for="g-monto">Monto</label>
+            <div class="campo-monto-hoja">
+                <span>$</span>
+                <input id="g-monto" type="text" inputmode="decimal" name="monto" placeholder="0.00" required>
+            </div>
+
+            <button type="submit" class="btn-guardar">Agregar gasto</button>
+        </form>
+    </dialog>
 
     <dialog id="menu-mas" class="hoja">
         <div class="agarradera"></div>
