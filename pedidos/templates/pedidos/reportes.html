@@ -1,9 +1,10 @@
 {% extends "pedidos/base.html" %}
-{% block titulo %}Panel de administracion{% endblock %}
+{% load formato %}
+{% block titulo %}Panel de administración{% endblock %}
 {% block contenido %}
 <header class="top">
     <span class="titulo">Brasas</span>
-    <span class="mesa">Administracion</span>
+    <span class="mesa">Admin</span>
     <span class="top-acciones">
         <a href="{% url 'logout' %}" class="top-salir">Salir</a>
     </span>
@@ -13,13 +14,13 @@
 
     {# ---- filtros: una fila, rango primero ---- #}
     <div class="dash-filtros">
-        <div class="rangos" role="group" aria-label="Tipo de periodo">
-            <a href="?rango=dia&fecha={{ ancla|date:'Y-m-d' }}" class="rango {% if rango == 'dia' %}activo{% endif %}">Dia</a>
+        <div class="rangos" role="group" aria-label="Tipo de período">
+            <a href="?rango=dia&fecha={{ ancla|date:'Y-m-d' }}" class="rango {% if rango == 'dia' %}activo{% endif %}">Día</a>
             <a href="?rango=semana&fecha={{ ancla|date:'Y-m-d' }}" class="rango {% if rango == 'semana' %}activo{% endif %}">Semana</a>
             <a href="?rango=mes&fecha={{ ancla|date:'Y-m-d' }}" class="rango {% if rango == 'mes' %}activo{% endif %}">Mes</a>
         </div>
 
-        <div class="navegar" role="group" aria-label="Cambiar de periodo">
+        <div class="navegar" role="group" aria-label="Cambiar de período">
             <a href="?rango={{ rango }}&fecha={{ nav_anterior|date:'Y-m-d' }}" class="nav-btn" aria-label="Periodo anterior" title="Anterior">◀</a>
             <form method="get" class="nav-fecha">
                 <input type="hidden" name="rango" value="{{ rango }}">
@@ -41,9 +42,9 @@
 
         <nav class="dash-menu" aria-label="Secciones">
             <a href="#resumen" class="menu-item activo" data-seccion="resumen">Resumen</a>
-            <a href="#vendido" class="menu-item" data-seccion="vendido">Que se vendio</a>
+            <a href="#vendido" class="menu-item" data-seccion="vendido">Qué se vendió</a>
             <a href="#bebidas" class="menu-item" data-seccion="bebidas">Bebidas</a>
-            <a href="#ordenes" class="menu-item" data-seccion="ordenes">Ordenes</a>
+            <a href="#ordenes" class="menu-item" data-seccion="ordenes">Órdenes</a>
             <a href="#gastos" class="menu-item" data-seccion="gastos">Gastos y ganancia</a>
             <a href="#fijos" class="menu-item" data-seccion="fijos">Gastos fijos</a>
             <a href="#margenes" class="menu-item" data-seccion="margenes">Margen por grupo</a>
@@ -56,17 +57,17 @@
     <div class="kpis">
         <div class="kpi kpi-hero">
             <p class="kpi-label">Ingresos</p>
-            <p class="kpi-valor">${{ kpi.ingresos|floatformat:2 }}</p>
+            <p class="kpi-valor">{{ kpi.ingresos|dinero }}</p>
             {% include "pedidos/_delta.html" with d=deltas.ingresos %}
         </div>
         <div class="kpi">
-            <p class="kpi-label">Ordenes</p>
+            <p class="kpi-label">Órdenes</p>
             <p class="kpi-valor">{{ kpi.ordenes }}</p>
             {% include "pedidos/_delta.html" with d=deltas.ordenes %}
         </div>
         <div class="kpi">
             <p class="kpi-label">Ticket promedio</p>
-            <p class="kpi-valor">${{ kpi.ticket|floatformat:2 }}</p>
+            <p class="kpi-valor">{{ kpi.ticket|dinero }}</p>
             {% include "pedidos/_delta.html" with d=deltas.ticket %}
         </div>
         <div class="kpi">
@@ -100,8 +101,8 @@
                 <div class="dash-grid">
         <section class="panel panel-ancho">
             <header class="panel-head">
-                <h2>Que se vendio</h2>
-                <span class="panel-sub">Unidades por producto, agrupadas por categoria. Los cambios de acompañamiento se cuentan aparte.</span>
+                <h2>Qué se vendió</h2>
+                <span class="panel-sub">Unidades por producto, agrupadas por categoría. Los cambios de acompañamiento se cuentan aparte.</span>
             </header>
             {% if desglose %}
             <div class="desglose">
@@ -109,18 +110,18 @@
                 <div class="desglose-cat">
                     <div class="desglose-head">
                         <span class="desglose-nombre">{{ cat.nombre }}</span>
-                        <span class="desglose-total">{{ cat.cantidad }} uds · ${{ cat.ingresos|floatformat:2 }}</span>
+                        <span class="desglose-total">{{ cat.cantidad }} ud{{ cat.cantidad|pluralize }} · {{ cat.ingresos|dinero }}</span>
                     </div>
                     <ul class="desglose-lista">
                         {% for f in cat.filas %}
-                        <li><strong>{{ f.cantidad }}</strong><span>{{ f.nombre }}</span><em>${{ f.ingresos|floatformat:2 }}</em></li>
+                        <li><strong>{{ f.cantidad }}</strong><span>{{ f.nombre }}</span><em>{{ f.ingresos|dinero }}</em></li>
                         {% endfor %}
                     </ul>
                 </div>
                 {% endfor %}
             </div>
             {% else %}
-            <p class="vacio">Sin ventas en este periodo.</p>
+            <p class="vacio">Sin ventas en este período.</p>
             {% endif %}
         </section>
 
@@ -147,7 +148,7 @@
                     <table class="tabla inv-tabla">
                         <thead>
                             <tr>
-                                <th>Producto</th>{% if grupo.grouper == "Gaseosas" %}<th>Tamaño</th>{% endif %}<th class="num">Vendidas en el periodo</th>
+                                <th>Producto</th>{% if grupo.grouper == "Gaseosas" %}<th>Tamaño</th>{% endif %}<th class="num">Vendidas en el período</th>
                                 <th>Llevar conteo</th><th>Unidades en stock</th><th class="num">Precio de compra</th>
                             </tr>
                         </thead>
@@ -195,7 +196,7 @@
                 <div class="dash-grid">
         <section class="panel panel-ancho">
             <header class="panel-head">
-                <h2>Todas las ordenes del periodo</h2>
+                <h2>Todas las órdenes del período</h2>
                 <span class="panel-sub">{{ todas|length }} orden{{ todas|length|pluralize:"es" }} · {{ etiqueta }}</span>
             </header>
             <div class="tabla-scroll tabla-alta">
@@ -215,15 +216,15 @@
                             <td class="mono">{{ o.creado|date:"d/m H:i" }}</td>
                             <td class="detalle">{% for it in o.items.all %}{{ it.cantidad }}x {{ it.descripcion }}{% if not forloop.last %} · {% endif %}{% endfor %}</td>
                             <td class="num">{% with n=o.items.all %}{{ n|length }}{% endwith %}</td>
-                            <td class="num"><strong>${{ o.total|floatformat:2 }}</strong></td>
+                            <td class="num"><strong>{{ o.total|dinero }}</strong></td>
                         </tr>
                         {% empty %}
-                        <tr><td colspan="6" class="vacio">Sin ordenes en este periodo.</td></tr>
+                        <tr><td colspan="6" class="vacio">Sin órdenes en este período.</td></tr>
                         {% endfor %}
                     </tbody>
                     {% if todas %}
                     <tfoot>
-                        <tr><td colspan="5" class="num"><strong>Total del periodo</strong></td><td class="num"><strong>${{ kpi.ingresos|floatformat:2 }}</strong></td></tr>
+                        <tr><td colspan="5" class="num"><strong>Total del período</strong></td><td class="num"><strong>{{ kpi.ingresos|dinero }}</strong></td></tr>
                     </tfoot>
                     {% endif %}
                 </table>
@@ -237,20 +238,20 @@
         <section class="panel panel-ancho">
             <header class="panel-head">
                 <h2>Ganancia de {{ mes_actual.etiqueta }} (mes en curso)</h2>
-                <span class="panel-sub">Fijo: siempre el mes completo hasta hoy, sin importar el periodo elegido arriba. Uselo de base para los sueldos.</span>
+                <span class="panel-sub">Fijo: siempre el mes completo hasta hoy, sin importar el período elegido arriba. Úselo de base para los sueldos.</span>
             </header>
             <div class="kpis">
                 <div class="kpi kpi-hero">
                     <p class="kpi-label">Ingresos del mes</p>
-                    <p class="kpi-valor">${{ mes_actual.ingresos|floatformat:2 }}</p>
+                    <p class="kpi-valor">{{ mes_actual.ingresos|dinero }}</p>
                 </div>
                 <div class="kpi">
                     <p class="kpi-label">Gastos del mes</p>
-                    <p class="kpi-valor">${{ mes_actual.total_gastos|floatformat:2 }}</p>
+                    <p class="kpi-valor">{{ mes_actual.total_gastos|dinero }}</p>
                 </div>
                 <div class="kpi">
-                    <p class="kpi-label">{% if mes_actual.ganancia < 0 %}Perdida{% else %}Ganancia{% endif %} del mes</p>
-                    <p class="kpi-valor {% if mes_actual.ganancia < 0 %}neg{% endif %}">${{ mes_actual.ganancia|floatformat:2 }}</p>
+                    <p class="kpi-label">{% if mes_actual.ganancia < 0 %}Pérdida{% else %}Ganancia{% endif %} del mes</p>
+                    <p class="kpi-valor {% if mes_actual.ganancia < 0 %}neg{% endif %}">{{ mes_actual.ganancia|dinero }}</p>
                     {% if mes_actual.margen is not None %}<p class="kpi-delta {% if mes_actual.margen < 0 %}baja{% else %}sube{% endif %}">{{ mes_actual.margen }}% de margen</p>{% endif %}
                 </div>
             </div>
@@ -267,15 +268,15 @@
             <div class="kpis">
                 <div class="kpi kpi-hero">
                     <p class="kpi-label">Ingresos</p>
-                    <p class="kpi-valor">${{ kpi.ingresos|floatformat:2 }}</p>
+                    <p class="kpi-valor">{{ kpi.ingresos|dinero }}</p>
                 </div>
                 <div class="kpi">
                     <p class="kpi-label">Gastos</p>
-                    <p class="kpi-valor">${{ financiero_variable.total_gastos|floatformat:2 }}</p>
+                    <p class="kpi-valor">{{ financiero_variable.total_gastos|dinero }}</p>
                 </div>
                 <div class="kpi">
-                    <p class="kpi-label">{% if financiero_variable.ganancia < 0 %}Perdida{% else %}Ganancia{% endif %}</p>
-                    <p class="kpi-valor {% if financiero_variable.ganancia < 0 %}neg{% endif %}">${{ financiero_variable.ganancia|floatformat:2 }}</p>
+                    <p class="kpi-label">{% if financiero_variable.ganancia < 0 %}Pérdida{% else %}Ganancia{% endif %}</p>
+                    <p class="kpi-valor {% if financiero_variable.ganancia < 0 %}neg{% endif %}">{{ financiero_variable.ganancia|dinero }}</p>
                     {% if financiero_variable.margen is not None %}<p class="kpi-delta {% if financiero_variable.margen < 0 %}baja{% else %}sube{% endif %}">{{ financiero_variable.margen }}% de margen</p>{% endif %}
                 </div>
             </div>
@@ -287,7 +288,7 @@
                 <button type="button" class="chip-plantilla"
                         data-categoria="{{ pl.categoria }}" data-descripcion="{{ pl.descripcion }}" data-monto="{{ pl.monto }}"
                         onclick="llenarGasto(this)">
-                    {{ pl.descripcion }} · ${{ pl.monto|floatformat:2 }}
+                    {{ pl.descripcion }} · {{ pl.monto|dinero }}
                 </button>
                 {% endfor %}
             </div>
@@ -342,7 +343,7 @@
                             <td class="mono">{{ g.fecha|date:"d/m/Y" }}</td>
                             <td class="detalle">{{ g.get_categoria_display }}</td>
                             <td>{{ g.descripcion }}</td>
-                            <td class="num">${{ g.monto|floatformat:2 }}</td>
+                            <td class="num">{{ g.monto|dinero }}</td>
                             <td>
                                 <form method="post" action="{% url 'eliminar_gasto' g.id %}" onsubmit="return confirm('¿Eliminar este gasto?');">
                                     {% csrf_token %}
@@ -352,12 +353,12 @@
                             </td>
                         </tr>
                         {% empty %}
-                        <tr><td colspan="5" class="vacio">Sin gastos cargados en este periodo.</td></tr>
+                        <tr><td colspan="5" class="vacio">Sin gastos cargados en este período.</td></tr>
                         {% endfor %}
                     </tbody>
                     {% if financiero_variable.gastos %}
                     <tfoot>
-                        <tr><td colspan="3" class="num"><strong>Total gastos del periodo</strong></td><td class="num"><strong>${{ financiero_variable.total_gastos|floatformat:2 }}</strong></td><td></td></tr>
+                        <tr><td colspan="3" class="num"><strong>Total gastos del período</strong></td><td class="num"><strong>{{ financiero_variable.total_gastos|dinero }}</strong></td><td></td></tr>
                     </tfoot>
                     {% endif %}
                 </table>
@@ -412,7 +413,7 @@
                         {% for r in gastos_recurrentes %}
                         <tr>
                             <td>{{ r.nombre }}</td>
-                            <td class="num">${{ r.monto|floatformat:2 }}</td>
+                            <td class="num">{{ r.monto|dinero }}</td>
                             <td class="num">{{ r.dia_mes }}</td>
                             <td>
                                 <form method="post" action="{% url 'toggle_gasto_recurrente' r.id %}">
@@ -459,15 +460,15 @@
             <div class="tabla-scroll">
                 <table class="tabla">
                     <thead>
-                        <tr><th>Grupo</th><th class="num">Ingresos</th><th class="num">Gastos</th><th class="num">{% if financiero.ganancia < 0 %}Perdida{% else %}Ganancia{% endif %}</th><th class="num">Margen</th></tr>
+                        <tr><th>Grupo</th><th class="num">Ingresos</th><th class="num">Gastos</th><th class="num">{% if financiero.ganancia < 0 %}Pérdida{% else %}Ganancia{% endif %}</th><th class="num">Margen</th></tr>
                     </thead>
                     <tbody>
                         {% for gr in margen_grupos %}
                         <tr>
                             <td>{{ gr.nombre }}</td>
-                            <td class="num">${{ gr.ingresos|floatformat:2 }}</td>
-                            <td class="num">${{ gr.gastos|floatformat:2 }}</td>
-                            <td class="num {% if gr.ganancia < 0 %}neg{% endif %}">${{ gr.ganancia|floatformat:2 }}</td>
+                            <td class="num">{{ gr.ingresos|dinero }}</td>
+                            <td class="num">{{ gr.gastos|dinero }}</td>
+                            <td class="num {% if gr.ganancia < 0 %}neg{% endif %}">{{ gr.ganancia|dinero }}</td>
                             <td class="num">{% if gr.margen is not None %}{{ gr.margen }}%{% else %}—{% endif %}</td>
                         </tr>
                         {% endfor %}
@@ -475,7 +476,7 @@
                         <tr>
                             <td>Gastos generales (alquiler, sueldos... no ligados a un grupo)</td>
                             <td class="num">—</td>
-                            <td class="num">${{ gastos_generales|floatformat:2 }}</td>
+                            <td class="num">{{ gastos_generales|dinero }}</td>
                             <td class="num">—</td>
                             <td class="num">—</td>
                         </tr>
@@ -532,7 +533,7 @@ const escalaLimpia = max => {
 // Columnas: serie temporal de ingresos
 function columnas(cont, serie) {
     cont.replaceChildren();
-    if (!serie.length || !serie.some(d => d.valor > 0)) { cont.innerHTML = '<p class="vacio">Sin ventas en este periodo.</p>'; return; }
+    if (!serie.length || !serie.some(d => d.valor > 0)) { cont.innerHTML = '<p class="vacio">Sin ventas en este período.</p>'; return; }
     const W = cont.clientWidth, H = 240, m = { t: 22, r: 12, b: 30, l: 46 };
     const iw = W - m.l - m.r, ih = H - m.t - m.b;
     const max = escalaLimpia(Math.max(...serie.map(d => d.valor)));
@@ -564,7 +565,7 @@ function columnas(cont, serie) {
         }
         if (destacado && d.valor > 0) svg.appendChild(el('text', { x: x + ancho / 2, y: y - 6, class: 'valor', 'text-anchor': 'middle' }, dinero(d.valor)));
         if (i % paso === 0) svg.appendChild(el('text', { x: x + ancho / 2, y: H - 10, class: 'tick', 'text-anchor': 'middle' }, d.etiqueta));
-        g.addEventListener('pointermove', e => mostrarTip(e, d.titulo || d.etiqueta, [[dinero(d.valor), 'ingresos'], [d.ordenes, d.ordenes === 1 ? 'orden' : 'ordenes']]));
+        g.addEventListener('pointermove', e => mostrarTip(e, d.titulo || d.etiqueta, [[dinero(d.valor), 'ingresos'], [d.ordenes, d.ordenes === 1 ? 'orden' : 'órdenes']]));
         g.addEventListener('pointerleave', ocultarTip);
         svg.appendChild(g);
     });
@@ -575,7 +576,7 @@ function columnas(cont, serie) {
 // Barras horizontales: ranking (valor en la punta)
 function barras(cont, filas, campoNombre, campoValor, fmt, campoExtra, fmtExtra, etiquetaValor) {
     cont.replaceChildren();
-    if (!filas.length) { cont.innerHTML = '<p class="vacio">Sin ventas en este periodo.</p>'; return; }
+    if (!filas.length) { cont.innerHTML = '<p class="vacio">Sin ventas en este período.</p>'; return; }
     const W = cont.clientWidth, filaH = 34, m = { t: 6, r: 64, b: 6, l: 8 };
     const H = m.t + m.b + filaH * filas.length;
     const etiqW = Math.min(190, W * 0.42);
@@ -623,7 +624,7 @@ function dibujarMargenes() {
     let inicial = location.hash.slice(1);
     if (!inicial) { try { inicial = localStorage.getItem('dash-seccion') || 'resumen'; } catch (e) { inicial = 'resumen'; } }
     mostrar(inicial);
-    // al cambiar de periodo, seguir en la misma seccion
+    // al cambiar de período, seguir en la misma seccion
     document.querySelectorAll('.dash-filtros a:not(.btn-exportar)').forEach(a => a.addEventListener('click', () => {
         const activa = document.querySelector('.menu-item.activo');
         if (activa) a.href = a.href.split('#')[0] + '#' + activa.dataset.seccion;

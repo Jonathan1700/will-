@@ -1,0 +1,15 @@
+{# Filtro compacto y sticky: Día/Semana/Mes + navegación de fecha #}
+{# ADAPTAR: variables rango, fecha, anterior, siguiente según tu vista #}
+<div class="filtro">
+  <div class="seg">
+    <a href="?rango=dia&fecha={{ fecha|date:'Y-m-d' }}"    class="{% if rango == 'dia' %}on{% endif %}">Día</a>
+    <a href="?rango=semana&fecha={{ fecha|date:'Y-m-d' }}" class="{% if rango == 'semana' %}on{% endif %}">Semana</a>
+    <a href="?rango=mes&fecha={{ fecha|date:'Y-m-d' }}"    class="{% if rango == 'mes' %}on{% endif %}">Mes</a>
+  </div>
+  <div class="fecha">
+    <a href="?rango={{ rango }}&fecha={{ anterior|date:'Y-m-d' }}" aria-label="Anterior">‹</a>
+    <span>{{ fecha|date:"D d/m/Y" }}</span>
+    <a href="?rango={{ rango }}&fecha={{ siguiente|date:'Y-m-d' }}" aria-label="Siguiente">›</a>
+    <a class="hoy" href="?rango={{ rango }}">Hoy</a>
+  </div>
+</div>

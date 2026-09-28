@@ -1,0 +1,20 @@
+{% extends "base.html" %}  {# ADAPTAR: tu base #}
+{% load static formato %}
+{% block extra_head %}
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <link href="https://fonts.googleapis.com/css2?family=Anton&family=Work+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'css/admin_movil.css' %}">
+{% endblock %}
+
+{% block content %}
+  {% include "partials/_header.html" %}
+  {% include "partials/_filtro.html" %}
+
+  <section data-grupo="resumen">{% include "partials/_resumen.html" %}</section>
+  <section data-grupo="ventas" hidden>{% include "partials/_ventas.html" %}</section>
+  <section data-grupo="inventario" hidden>{% include "partials/_inventario.html" %}</section>
+  <section data-grupo="gastos" hidden>{% include "partials/_gastos.html" %}</section>
+
+  {% include "partials/_bottom_nav.html" %}
+  <script src="{% static 'js/admin_movil.js' %}" defer></script>
+{% endblock %}

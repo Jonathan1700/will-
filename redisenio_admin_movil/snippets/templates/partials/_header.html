@@ -1,0 +1,10 @@
+{# Encabezado: logo, insignia ADMIN e ícono de Excel (reemplaza el botón ancho) #}
+<header class="top">
+  <span class="logo">BRASAS</span>
+  <span class="badge">ADMIN</span>
+  {# ADAPTAR: nombre de tu URL de exportación y de los parámetros que ya usa #}
+  <a class="icono" aria-label="Exportar a Excel"
+     href="{% url 'exportar_excel' %}?rango={{ rango }}&fecha={{ fecha|date:'Y-m-d' }}">
+    {% include "icons/descargar.svg" %}
+  </a>
+</header>

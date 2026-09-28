@@ -1,0 +1,42 @@
+{% load formato %}
+{# Grupo VENTAS con dos sub-pestañas #}
+<div class="subtabs">
+  <button type="button" data-sub-btn="vendido" class="activo">Qué se vendió</button>
+  <button type="button" data-sub-btn="ordenes">Órdenes</button>
+</div>
+
+<div class="contenido" data-sub="vendido">
+  <p style="margin:0;font-size:13px;color:var(--gris)">Unidades por producto, por categoría. Los cambios de acompañamiento se cuentan aparte.</p>
+  <div class="cats">
+    {% for cat in categorias %}
+    <details class="cat" {% if forloop.first %}open{% endif %}>
+      <summary>
+        <span>{{ cat.nombre|upper }}</span>
+        <span>{{ cat.uds }} ud{{ cat.uds|pluralize }} · {{ cat.total|dinero }}</span>
+      </summary>
+      {% for it in cat.items %}
+      <div class="fila"><b>{{ it.cant }}</b><span>{{ it.nombre }}</span><span>{{ it.total|dinero }}</span></div>
+      {% endfor %}
+    </details>
+    {% endfor %}
+  </div>
+</div>
+
+<div class="contenido" data-sub="ordenes" hidden>
+  <p style="margin:0;font-size:13px;color:var(--gris)">{{ ordenes|length }} orden{{ ordenes|length|pluralize:"es" }} del periodo</p>
+  {% for o in ordenes %}
+  <article class="orden">
+    <header>
+      <b>#{{ o.id }}</b>
+      <span class="chip">{{ o.mesa }}</span>
+      <time>{{ o.fecha|date:"H:i" }}</time>
+      <strong>{{ o.total|dinero }}</strong>
+    </header>
+    <ul>
+      {% for d in o.detalles.all %}
+      <li>{{ d.cantidad }}× {{ d.producto.nombre }}{% if d.nota %} <small>· {{ d.nota }}</small>{% endif %}</li>
+      {% endfor %}
+    </ul>
+  </article>
+  {% endfor %}
+</div>

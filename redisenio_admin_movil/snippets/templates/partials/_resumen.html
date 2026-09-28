@@ -1,0 +1,35 @@
+{% load formato %}
+{# Grupo RESUMEN. ADAPTAR nombres de variables del contexto. #}
+<div class="contenido">
+  <div class="kpi oscuro grande">
+    <small>Ingresos {% if rango == 'dia' %}del día{% elif rango == 'semana' %}de la semana{% else %}del mes{% endif %}</small>
+    <b>{{ ingresos|dinero }}</b>
+    {% if variacion is not None %}<small>{{ variacion }}% vs periodo anterior</small>{% endif %}
+  </div>
+
+  <div class="kpis">
+    <div class="kpi"><small>Órdenes</small><b>{{ num_ordenes }}</b></div>
+    <div class="kpi"><small>Ticket prom.</small><b>{{ ticket_promedio|dinero }}</b></div>
+    <div class="kpi"><small>Productos</small><b>{{ productos_vendidos }}</b></div>
+  </div>
+
+  {# Gráfico "Ventas por hora": mantener tu gráfico actual, solo darle ancho 100% y mostrar la hora pico arriba #}
+  <div class="kpi">
+    <small style="font-size:16px;font-weight:700;color:#1A1A1A">Ventas por hora</small>
+    {% if hora_pico %}<small>Hora pico: {{ hora_pico }}h con {{ monto_pico|dinero }}</small>{% endif %}
+    {# ADAPTAR: aquí va tu <canvas>/<svg> actual #}
+  </div>
+
+  <div class="rank">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <strong style="font-size:16px">Más vendidos</strong>
+      <button type="button" data-ir="ventas" style="border:0;background:none;text-decoration:underline;font-weight:600;color:var(--navy);min-height:44px">Ver todos</button>
+    </div>
+    {% for p in mas_vendidos|slice:":3" %}
+    <div>
+      <div class="item"><span>{{ p.nombre }}</span><b>{{ p.cantidad }}</b></div>
+      <div class="track {% if forloop.first %}top{% endif %}"><div style="width:{{ p.porcentaje }}%"></div></div>
+    </div>
+    {% endfor %}
+  </div>
+</div>

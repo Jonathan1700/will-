@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Nuevo gasto</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Work+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:'Work Sans',sans-serif;background:#F5EEE2}
+button,input,select{font-family:inherit}
+button{cursor:pointer}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; position: relative; display: flex; flex-direction: column; background: #F5EEE2; overflow: hidden; font-family: 'Work Sans', sans-serif; color: #1A1A1A">
+
+<header style="height: 56px; flex-shrink: 0; background: #1B2A4E; display: flex; align-items: center; padding: 0 16px">
+<div style="font-family: 'Anton', sans-serif; font-size: 26px; letter-spacing: 0.5px; color: #F5EEE2">BRASAS</div>
+</header>
+
+<div style="padding: 16px">
+<div style="font-size: 13px; font-weight: 700; letter-spacing: 0.8px; color: #1B2A4E">GASTOS DEL DÍA</div>
+<div style="background: #FFFFFF; border: 1px solid #E6DCCB; border-radius: 16px; padding: 24px 16px; margin-top: 10px; font-size: 14px; color: #5F5747; text-align: center">Sin gastos cargados en este periodo.</div>
+</div>
+
+<div style="position: absolute; left: 0; top: 0; width: 390px; height: 844px; background: rgba(27, 42, 78, 0.6)"></div>
+
+<div style="position: absolute; left: 0; bottom: 0; width: 390px; background: #FFFFFF; border-radius: 24px 24px 0 0; padding: 10px 20px 24px; display: flex; flex-direction: column; gap: 14px">
+<div style="width: 44px; height: 5px; border-radius: 3px; background: #CFC3AC; align-self: center"></div>
+<div style="display: flex; align-items: center; justify-content: space-between">
+<div style="font-family: 'Anton', sans-serif; font-size: 26px; letter-spacing: 0.5px; color: #1B2A4E">NUEVO GASTO</div>
+<a href="Gastos.dc.html" aria-label="Cerrar" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; color: #1B2A4E; text-decoration: none">
+<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12"></path><path d="M18 6L6 18"></path></svg>
+</a>
+</div>
+
+<div>
+<label for="g-fecha" style="display: block; font-size: 13px; font-weight: 600; color: #5F5747; margin-bottom: 6px">Fecha</label>
+<input id="g-fecha" type="date" value="2026-09-26" style="width: 100%; height: 52px; border: 1px solid #CFC3AC; border-radius: 12px; padding: 0 14px; font-size: 16px; background: #FFFFFF; color: #1A1A1A">
+</div>
+
+<div>
+<label for="g-cat" style="display: block; font-size: 13px; font-weight: 600; color: #5F5747; margin-bottom: 6px">Categoría</label>
+<select id="g-cat" style="width: 100%; height: 52px; border: 1px solid #CFC3AC; border-radius: 12px; padding: 0 14px; font-size: 16px; background: #FFFFFF; color: #1A1A1A">
+<option>Pollo</option>
+</select>
+</div>
+
+<div>
+<label for="g-desc" style="display: block; font-size: 13px; font-weight: 600; color: #5F5747; margin-bottom: 6px">Descripción</label>
+<input id="g-desc" type="text" placeholder="Ej: 20 pollos, 15 kg de papa" style="width: 100%; height: 52px; border: 1px solid #CFC3AC; border-radius: 12px; padding: 0 14px; font-size: 16px; background: #FFFFFF; color: #1A1A1A">
+</div>
+
+<div>
+<label for="g-monto" style="display: block; font-size: 13px; font-weight: 600; color: #5F5747; margin-bottom: 6px">Monto</label>
+<div style="display: flex; align-items: center; height: 52px; border: 1px solid #CFC3AC; border-radius: 12px; padding: 0 14px; gap: 8px">
+<span style="font-size: 18px; font-weight: 600; color: #5F5747">$</span>
+<input id="g-monto" type="text" inputmode="decimal" placeholder="0.00" style="flex-grow: 1; min-width: 0; height: 48px; border: 0; outline: 0; font-size: 18px; font-weight: 600; background: transparent; color: #1A1A1A">
+</div>
+</div>
+
+<button type="button" style="width: 100%; height: 54px; border: 0; border-radius: 14px; background: #F2A63B; color: #1B2A4E; font-size: 15px; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase; margin-top: 4px">Agregar gasto</button>
+</div>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>
