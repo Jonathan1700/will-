@@ -237,9 +237,15 @@
                 <div class="dash-grid">
         <section class="panel panel-ancho">
             <header class="panel-head">
-                <h2>Ganancia de {{ mes_actual.etiqueta }} (mes en curso)</h2>
+                <h2>Mes en curso · {{ mes_actual.etiqueta }}</h2>
                 <span class="panel-sub">Fijo: siempre el mes completo hasta hoy, sin importar el período elegido arriba. Úselo de base para los sueldos.</span>
             </header>
+            {% if mes_actual.datos_parciales %}
+            <p class="aviso-parcial">
+                {% if mes_actual.primer_dia %}Hay datos desde el {{ mes_actual.primer_dia|date:"d/m" }}. Todavía no hay una semana completa de ventas este mes, por eso el margen no se calcula todavía.
+                {% else %}Sin ventas registradas este mes todavía.{% endif %}
+            </p>
+            {% endif %}
             <div class="kpis">
                 <div class="kpi kpi-hero">
                     <p class="kpi-label">Ingresos del mes</p>
@@ -252,16 +258,26 @@
                 <div class="kpi">
                     <p class="kpi-label">{% if mes_actual.ganancia < 0 %}Pérdida{% else %}Ganancia{% endif %} del mes</p>
                     <p class="kpi-valor {% if mes_actual.ganancia < 0 %}neg{% endif %}">{{ mes_actual.ganancia|dinero }}</p>
-                    {% if mes_actual.margen is not None %}<p class="kpi-delta {% if mes_actual.margen < 0 %}baja{% else %}sube{% endif %}">{{ mes_actual.margen }}% de margen</p>{% endif %}
+                    {% if mes_actual.margen is not None %}
+                    <p class="kpi-delta {% if mes_actual.margen < 0 %}baja{% else %}sube{% endif %}">{{ mes_actual.margen }}% de margen</p>
+                    {% else %}
+                    <p class="kpi-delta neutro">Margen: sin datos suficientes todavía</p>
+                    {% endif %}
                 </div>
             </div>
+            {% if mes_actual.cobertura is not None and mes_actual.faltan %}
+            <div class="cobertura">
+                <div class="cobertura-barra"><div style="width: {% if mes_actual.cobertura > 100 %}100{% else %}{{ mes_actual.cobertura }}{% endif %}%"></div></div>
+                <p class="cobertura-texto">Gastos cubiertos: {{ mes_actual.cobertura }}%. Faltan <strong>{{ mes_actual.faltan|dinero }}</strong> en ventas para cubrir los gastos del mes.</p>
+            </div>
+            {% endif %}
         </section>
                 </div>
 
                 <div class="dash-grid">
         <section class="panel panel-ancho">
             <header class="panel-head">
-                <h2>Ingresos vs gastos de {{ etiqueta }}</h2>
+                <h2>Período seleccionado · {{ etiqueta }}</h2>
                 <span class="panel-sub">Solo insumos variables (pollo, papa, vegetales, aceite, condimentos, bebidas...). Los gastos fijos (alquiler, sueldos, luz...) se cargan y se ven en la pestaña "Gastos fijos".</span>
             </header>
 

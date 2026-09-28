@@ -2057,6 +2057,43 @@ a.btn-enviar-link {
 .kpi-hero .kpi-delta.baja { color: #F3A196; }
 .kpi-valor.neg { color: var(--danger); }
 
+/* ---- aviso de datos parciales (mes recien empezado) y cobertura de gastos ---- */
+.aviso-parcial {
+    display: flex;
+    gap: 10px;
+    background: #FFF1D6;
+    border: 1px solid #E8C27A;
+    border-radius: 14px;
+    padding: 12px 14px;
+    font-size: 13px;
+    line-height: 1.45;
+    color: #4A3200;
+    margin: 0 0 14px;
+}
+
+.cobertura { margin-top: 4px; }
+
+.cobertura-barra {
+    height: 10px;
+    border-radius: 5px;
+    background: var(--viz-grid, #ECE7DB);
+    overflow: hidden;
+}
+
+.cobertura-barra div {
+    height: 100%;
+    min-width: 8px;
+    border-radius: 5px;
+    background: var(--mustard);
+}
+
+.cobertura-texto {
+    font-size: 13px;
+    line-height: 1.45;
+    color: var(--ink);
+    margin: 10px 0 0;
+}
+
 /* ---- gastos de materia prima (dashboard) ---- */
 .plantillas-gasto {
     display: flex;
