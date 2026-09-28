@@ -224,12 +224,6 @@
                 <h2>Mes en curso · {{ mes_actual.etiqueta }}</h2>
                 <span class="panel-sub">Fijo: siempre el mes completo hasta hoy, sin importar el período elegido arriba. Úselo de base para los sueldos.</span>
             </header>
-            {% if mes_actual.datos_parciales %}
-            <p class="aviso-parcial">
-                {% if mes_actual.primer_dia %}Hay datos desde el {{ mes_actual.primer_dia|date:"d/m" }}. Todavía no hay una semana completa de ventas este mes, por eso el margen no se calcula todavía.
-                {% else %}Sin ventas registradas este mes todavía.{% endif %}
-            </p>
-            {% endif %}
             <div class="kpis">
                 <div class="kpi kpi-hero">
                     <p class="kpi-label">Ingresos del mes</p>
